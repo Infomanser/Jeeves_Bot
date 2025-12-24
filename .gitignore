@@ -1,5 +1,7 @@
 .env
 venv/
 __pycache__/
+logs/
+*.log
 settings.json
 calendar.json
