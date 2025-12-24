@@ -15,7 +15,9 @@ from services.calendar_api import (
     get_event_by_id, 
     update_event_text, 
     add_new_event, 
-    decode_event_to_string
+    decode_event_to_string,
+    delete_event,
+    check_upcoming_events
 )
 from keyboards.calendar_kb import get_events_filter_kb, get_edit_kb
 from services.weather_api import get_weather_forecast, search_city, set_city_coords 
@@ -163,6 +165,22 @@ async def start_add_event(message: types.Message, state: FSMContext):
     await message.answer("📅 <b>Крок 1/3:</b> Введіть дату (наприклад, <code>14.02</code>):")
     await state.set_state(AddEvent.waiting_for_date)
 
+@router.message(Command("del"))
+async def cmd_delete_event(message: types.Message):
+    if not is_authorized(message.from_user.id): return
+    
+    args = message.text.split(maxsplit=1)
+    if len(args) < 2:
+        return await message.answer("🗑 Використання: <code>/del 14.02</code> або <code>/del Назва</code>")
+    
+    query = args[1].strip()
+    
+    try:
+        result = delete_event(query) 
+        await message.answer(f"🗑 {result}")
+    except Exception as e:
+        await message.answer(f"❌ Помилка видалення: {e}")
+
 @router.message(AddEvent.waiting_for_date)
 async def process_date(message: types.Message, state: FSMContext):
     text = message.text.strip()
@@ -193,3 +211,37 @@ async def process_link(message: types.Message, state: FSMContext):
     except Exception as e:
         await message.answer(f"❌ Помилка: {e}")
     await state.clear()
+
+# --- ТЕСТ РАНКОВОГО ЗВІТУ ---
+@router.message(Command("briefing"))
+async def cmd_manual_briefing(message: types.Message):
+    if not is_authorized(message.from_user.id): return
+
+    status_msg = await message.answer("☕️ Збираю ранкову пресу...")
+
+    parts = []
+
+    # 1. КАЛЕНДАР
+    events_text = check_upcoming_events()
+    if events_text:
+        parts.append(f"📅 <b>Нагадування:</b>\n{events_text}")
+
+    # 2. ПОГОДА
+    weather_text = await get_weather_forecast()
+    if weather_text:
+        parts.append(f"{weather_text}")
+
+    # 3. НОВИНИ
+    news_text = await get_fresh_news()
+    if news_text:
+        parts.append(f"{news_text}")
+
+    # ВІДПРАВКА
+    if parts:
+        full_text = "\n\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n\n".join(parts)
+        await status_msg.edit_text(
+            f"☕️ <b>Ранковий брифінг (Manual):</b>\n\n{full_text}", 
+            disable_web_page_preview=True
+        )
+    else:
+        await status_msg.edit_text("☕️ Доброго ранку! Новин та подій немає.")
