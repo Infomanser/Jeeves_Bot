@@ -1,75 +1,169 @@
 # handlers/hardware.py
 import html
-from aiogram import Router, types, F # <--- ДОДАНО F
+import subprocess
+import os
+import glob
+from aiogram import Router, types, F
 from aiogram.filters import Command, CommandObject
-from utils.filters import IsOwner
+
+
+from config import OWNER_ID, ADMIN_IDS
 from services import termux_api as hardware
 
 router = Router()
-router.message.filter(IsOwner())
 
-# --- Інформаційні команди ---
+# --- ХЕЛПЕРИ ПРАВ ---
+def is_owner(user_id: int) -> bool:
+    return user_id == OWNER_ID
+
+def is_admin(user_id: int) -> bool:
+    return user_id == OWNER_ID or user_id in ADMIN_IDS
+
+# --- 1. СТАТУС ТА ПАМ'ЯТЬ ---
 
 @router.message(Command("status"))
-@router.message(F.text == "📊 Статус")
+@router.message(F.text == "📲 Статус")
 async def cmd_status(message: types.Message):
+    if not is_owner(message.from_user.id): return
+    
     await message.answer("🔍 Збираю дані про систему...")
     report = hardware.get_full_system_report()
+    
     if len(report) > 4096: 
         report = report[:4090] + "..."
     await message.answer(report)
 
-@router.message(Command("storage"))
-async def cmd_storage(message: types.Message):
+@router.message(F.text == "💾 Пам'ять")
+async def cmd_memory_check(message: types.Message):
+    if not is_owner(message.from_user.id): return
     info = hardware.get_storage_info()
     await message.answer(f"💾 <b>Сховище:</b>\n{info}")
 
-@router.message(Command("ping"))
-async def cmd_ping(message: types.Message):
-    await message.answer(f"🏓 Pong! Аптайм: {hardware.get_uptime()}")
+# --- 2. ЛІХТАР (Тільки Власник) ---
 
-# --- Управління залізом ---
-
-@router.message(Command("light_on"))
-@router.message(F.text == "🔦 Вкл")
+@router.message(F.text == "🔦 Увімк")
 async def cmd_light_on(message: types.Message):
+    if not is_owner(message.from_user.id): return
     hardware.torch_control('on')
     await message.answer("🔦 Ліхтар увімкнено.")
 
-@router.message(Command("light_off"))
-@router.message(F.text == "🌑 Викл") # <--- Додав текст кнопки
+@router.message(F.text == "🌑 Вимк")
 async def cmd_light_off(message: types.Message):
+    if not is_owner(message.from_user.id): return
     hardware.torch_control('off')
     await message.answer("🌑 Ліхтар вимкнено.")
 
+# --- 3. TTS (ЗНАЙТИ ТЕЛЕФОН) ---
+
+@router.message(F.text == "📢 Знайти телефон")
+async def btn_find_phone(message: types.Message):
+    if not is_owner(message.from_user.id): return
+    
+    await message.answer("📣 <b>УВАГА!</b> Вмикаю сирену!")
+    subprocess.run(["termux-tts-speak", "Увага! Я тут! Зверни на мене увагу!"])
+
 @router.message(Command("say"))
 async def cmd_say(message: types.Message, command: CommandObject):
+    if not is_admin(message.from_user.id): return
+
     if not command.args:
-        return await message.answer("🗣 Напиши, що сказати. Наприклад: <code>/say Привіт</code>")
-    hardware.speak_text(command.args)
-    await message.answer(f"🗣 Промовляю: <i>{html.escape(command.args)}</i>")
+        return await message.answer("🗣 Напиши: <code>/say Текст</code>")
+    
+    subprocess.run(["termux-tts-speak", command.args])
+    await message.answer(f"🗣 Кажу: <i>{html.escape(command.args)}</i>")
 
-# --- Перезавантаження сервісів (PM2) ---
+# --- 4. РЕСТАРТИ СЕРВІСІВ (PM2) ---
 
-async def _restart_helper(message: types.Message, service_name: str, friendly_name: str):
-    await message.answer(f"🔄 Перезапускаю <b>{friendly_name}</b>...")
+SERVICES_MAP = {
+    "🔄 AllSaver": "allssaverbot",
+    "🔄 Кіт": "misanthrope_cat",
+    "🔄 Тунель": "moto",
+    "🔄 SSH": "ssh-server",
+    "🔄 Дживс": "Jeeves"
+}
+
+RESTRICTED_SERVICES = ["moto", "ssh-server", "Jeeves"]
+
+@router.message(F.text.startswith("🔄 "))
+async def handle_restarts(message: types.Message):
+    user_id = message.from_user.id
+    if not is_admin(user_id): return
+
+    service_name = SERVICES_MAP.get(message.text)
+    
+    if not service_name:
+        return await message.answer(f"❓ Не знайшов сервіс для кнопки '{message.text}'")
+
+    if service_name in RESTRICTED_SERVICES and not is_owner(user_id):
+        return await message.answer("⛔️ Цей сервіс дозволено перезапускати тільки Власнику.")
+
+    await message.answer(f"⏳ Перезапускаю <b>{service_name}</b>...")
+
+    if service_name == "Jeeves":
+        await message.answer("♻️ Йду на перезавантаження. Побачимось за мить! 👋")
+    
     if hardware.restart_pm2_service(service_name):
-        await message.answer(f"✅ {friendly_name}: Успішно!")
+        if service_name != "Jeeves":
+            await message.answer(f"✅ {message.text}: Успішно!")
     else:
-        await message.answer(f"❌ {friendly_name}: Помилка PM2.")
+        await message.answer(f"❌ {message.text}: Помилка PM2 (див. логи).")
 
-@router.message(Command("r_cat"))
-@router.message(F.text == "🐈 перезапуск.")
-async def restart_cat(message: types.Message):
-    await _restart_helper(message, "misanthrope_cat", "Кота")
+# --- 5. ЛОГИ (Тільки Власник) ---
 
-@router.message(Command("r_ssh"))
-@router.message(F.text == "Рестарт 😈 SSH")
-async def restart_ssh(message: types.Message):
-    await _restart_helper(message, "ssh-server", "SSH")
+@router.message(F.text == "📄 Логи")
+async def cmd_logs(message: types.Message):
+    if not is_owner(message.from_user.id): return
+    
+    await message.answer("📋 Читаю останні 20 рядків логів...")
+    try:
+        # PM2 знає де логи, тому просто просимо його вивести останні
+        result = subprocess.check_output(
+            ["pm2", "logs", "--lines", "20", "--nostream", "--raw"], 
+            stderr=subprocess.STDOUT
+        ).decode('utf-8')
+        
+        clean_logs = html.escape(result[-3500:]) 
+        await message.answer(f"<pre>{clean_logs}</pre>")
+    except Exception as e:
+        await message.answer(f"❌ Не вдалося отримати логи: {e}")
 
-@router.message(Command("r_status", "reboot"))
-@router.message(F.text == "Рестарт головного 😈")
-async def restart_bot(message: types.Message):
-    await message.answer("♻️ Перезавантажуюсь... Побачимось за мить! 👋")
-    hardware.restart_pm2_service("status")
+@router.message(F.text == "❌ Еrror log")
+async def cmd_err_logs(message: types.Message):
+    if not is_owner(message.from_user.id): return
+    
+    # 1. Знаходимо папку логів PM2
+    home_dir = os.path.expanduser("~")
+    pm2_log_dir = os.path.join(home_dir, ".pm2", "logs")
+    
+    # 2. Шлях до головного файлу помилок
+    main_error_log = os.path.join(pm2_log_dir, "Jeeves-error.log")
+    
+    target_file = main_error_log
+    info_msg = "📋 Логи помилок (Active):"
+
+    # 3. Перевіряємо, чи існує файл і чи він не пустий
+    if os.path.exists(main_error_log) and os.path.getsize(main_error_log) == 0:
+        # Якщо основний файл пустий (0 байт), шукаємо в ротації (Jeeves-error__YYYY...)
+        search_pattern = os.path.join(pm2_log_dir, "Jeeves-error__*.log")
+        rotated_files = sorted(glob.glob(search_pattern))
+        
+        if rotated_files:
+            # Беремо останній (найсвіжіший) файл
+            target_file = rotated_files[-1]
+            info_msg = f"📋 Лог пустий. Читаю архів:\n{os.path.basename(target_file)}"
+        else:
+             return await message.answer("✅ Файл помилок пустий і архівів немає. (Clean run)")
+    
+    await message.answer(info_msg)
+
+    try:
+        # Читаємо останні 30 рядків через tail (щоб не вантажити весь файл)
+        output = subprocess.check_output(["tail", "-n", "30", target_file]).decode("utf-8")
+        
+        if output.strip():
+            await message.answer(f"<pre>{html.escape(output)}</pre>")
+        else:
+            await message.answer("✅ Лог пустий.")
+            
+    except Exception as e:
+        await message.answer(f"❌ Помилка читання файлу: {e}")

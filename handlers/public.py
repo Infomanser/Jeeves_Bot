@@ -1,12 +1,13 @@
 # handlers/public.py
-import html # <--- ДОДАНО
+import html
 from aiogram import Router, types
 from aiogram.filters import Command
 from aiogram.utils.markdown import hbold
 
-from utils.filters import IsOwner, IsAdmin
+# Імпорти конфігурації
+from config import OWNER_ID, ADMIN_IDS
+from keyboards.builders import get_main_menu
 from utils.helpers import get_time_greeting
-from keyboards.main_menu import get_main_menu
 
 router = Router()
 
@@ -16,39 +17,34 @@ async def cmd_start(message: types.Message):
     name = html.escape(message.from_user.first_name)
     greeting = get_time_greeting()
     
-    # Визначаємо права для побудови меню
-    # (Викликаємо фільтри вручну, щоб отримати True/False)
-    _is_owner = await IsOwner()(message)
-    _is_admin = await IsAdmin()(message)
+    # Визначаємо статус для тексту
+    is_owner = (user_id == OWNER_ID)
+    is_admin = (user_id in ADMIN_IDS) or is_owner
 
-    # Генеруємо меню
-    menu_kb = get_main_menu(is_owner=_is_owner, is_admin=_is_admin)
+
+    menu_kb = get_main_menu(user_id)
     
     # 1. ВЛАСНИК
-    if _is_owner:
+    if is_owner:
         await message.answer(
             f"{greeting}, Шеф {hbold(name)}! 🎩\n"
-            f"Системи в нормі. Чекаю на вказівки.\n\n"
-            f"🔧 <b>Доступні команди:</b>\n"
-            f"/status - Стан системи\n"
-            f"/light_on - Ліхтар\n"
-            f"/reboot - Перезавантаження",
-            reply_markup=menu_kb # <--- ДОДАНО: Показуємо кнопки
+            f"Системи в нормі. Чекаю на вказівки.",
+            reply_markup=menu_kb
         )
     
     # 2. АДМІН
-    elif _is_admin:
+    elif is_admin:
         await message.answer(
             f"{greeting}, {hbold(name)}! 👋\n"
-            f"Я готовий допомагати.",
-            reply_markup=menu_kb # <--- ДОДАНО
+            f"Радий бачити. Ось твій пульт.",
+            reply_markup=menu_kb
         )
         
     # 3. ЧУЖИЙ
     else:
         await message.answer(
             f"Вітаю, {name}.\n"
-            f"Я приватний асистент. У мене немає функцій для публічного доступу.\n"
+            f"Я приватний асистент Jeeves. У мене немає функцій для публічного доступу.\n"
             f"Гарного дня! 🤖"
         )
 
