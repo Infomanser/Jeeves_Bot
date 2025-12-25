@@ -116,11 +116,17 @@ async def process_filter(callback: types.CallbackQuery):
         
         for event in events:
             try:
-                d_val, m_val = map(int, event['date'].split('.'))
-                # Визначаємо день тижня (беремо поточний рік)
+                
+                date_parts = event['date'].strip().split('.')
+                d_val = int(date_parts[0])
+                m_val = int(date_parts[1])
+                
+                
                 dt_obj = datetime(current_year, m_val, d_val)
                 day_label = days_ua[dt_obj.weekday()]
-            except:
+            except Exception as e:
+               
+                print(f"DEBUG: Day calculation error for {event.get('date')}: {e}")
                 day_label = "??"
 
             # Додаємо заголовок місяця, якщо він змінився
