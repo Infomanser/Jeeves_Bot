@@ -122,7 +122,7 @@ def add_new_event(user_id: int, date: str, name: str, raw_link: str = "-"):
     new_id = max([e.get('id', 0) for e in events], default=0) + 1
     
     link = None
-    if raw_link and raw_link != "-" and "http" in raw_link:
+    if raw_link and raw_link != "-":
         link = raw_link.strip()
 
     new_event = {
