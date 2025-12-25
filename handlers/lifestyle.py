@@ -111,19 +111,24 @@ async def process_filter(callback: types.CallbackQuery):
             line = f"• <b>{event['date']}</b>: {decode_event_to_string(event)}\n"
             # Якщо повідомлення стає занадто довгим, розбиваємо
             if len(chunk) + len(line) > 3500:
-                await callback.message.answer(chunk, disable_web_page_preview=True)
+                await callback.message.answer(chunk, disable_web_page_preview=True, parse_mode="HTML")
                 chunk = line
             else:
                 chunk += line
         
         if chunk:
-            await callback.message.answer(chunk, disable_web_page_preview=True)
+                await callback.message.answer(chunk, disable_web_page_preview=True, parse_mode="HTML")
             
     else:
-        # Для "Сьогодні", "Тиждень" — показуємо картками (з кнопкою редагування)
+        # Для "Сьогодні", "Тиждень" — показуємо картками
         for event in events:
             text_display = f"<b>{event['date']}</b>: {decode_event_to_string(event)}"
-            await callback.message.answer(text_display, reply_markup=get_edit_kb(event['id']), disable_web_page_preview=True)
+            await callback.message.answer(
+                text_display, 
+                reply_markup=get_edit_kb(event['id']), 
+                disable_web_page_preview=True, 
+                parse_mode="HTML"
+            )
 
     await callback.message.answer("🔽 Меню:", reply_markup=get_events_filter_kb())
 
@@ -209,7 +214,11 @@ async def process_link(message: types.Message, state: FSMContext):
             raw_link=message.text.strip()
         )
         preview = decode_event_to_string(saved_event)
-        await message.answer(f"✅ <b>Збережено!</b>\n📅 {saved_event['date']}: {preview}", disable_web_page_preview=True)
+        await message.answer(
+            f"✅ <b>Збережено!</b>\n📅 {saved_event['date']}: {preview}", 
+            disable_web_page_preview=True,
+            parse_mode="HTML"
+        )
     except Exception as e:
         await message.answer(f"❌ Помилка: {e}")
     await state.clear()
@@ -233,6 +242,10 @@ async def cmd_manual_briefing(message: types.Message):
 
     if parts:
         full_text = "\n\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n\n".join(parts)
-        await status_msg.edit_text(f"☕️ <b>Ранковий брифінг:</b>\n\n{full_text}", disable_web_page_preview=True)
+        await status_msg.edit_text(
+            f"☕️ <b>Ранковий брифінг:</b>\n\n{full_text}", 
+            disable_web_page_preview=True,
+            parse_mode="HTML"
+        )
     else:
         await status_msg.edit_text("☕️ Доброго ранку! Новин та подій немає.")
