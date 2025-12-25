@@ -17,13 +17,12 @@ from services.calendar_api import (
     check_upcoming_events
 )
 from keyboards.calendar_kb import get_events_filter_kb, get_edit_kb
-from services.weather_api import get_weather_forecast, search_city, set_city_coords 
+from services.weather_api import get_weather_forecast, search_city, set_city_coords
 from services.news_api import get_fresh_news
 
 router = Router()
 
-# ... STATES
-
+# --- STATES ---
 class CalendarStates(StatesGroup):
     waiting_for_import = State()
     waiting_for_edit_text = State()
@@ -40,7 +39,6 @@ def is_authorized(user_id: int) -> bool:
     return user_id == OWNER_ID or user_id in ADMIN_IDS
 
 # --- WEATHER & NEWS ---
-
 
 @router.message(Command("set_city"))
 async def cmd_set_city(message: types.Message, state: FSMContext):
@@ -82,7 +80,7 @@ async def cmd_news(message: types.Message):
     text = await get_fresh_news()
     await sent_msg.edit_text(text, disable_web_page_preview=True)
 
-# --- 1. ПЕРЕГЛЯД КАЛЕНДАРЯ (ОНОВЛЕНО) ---
+# --- 1. ПЕРЕГЛЯД КАЛЕНДАРЯ ---
 
 @router.message(Command("events"))
 @router.message(F.text == "📅 Календар")
@@ -103,12 +101,13 @@ async def process_filter(callback: types.CallbackQuery):
 
     await callback.message.delete()
     
-    # ЛОГІКА ДЛЯ "ВСІ ПОДІЇ" (СПИСОК)
+
     if filter_type == "all":
-        response_text = "📋 <b>Всі ваші події:</b>\n\n"
-        chunk = ""
+        chunk = "📋 <b>Всі ваші події:</b>\n\n"
+        
         for event in events:
             line = f"• <b>{event['date']}</b>: {decode_event_to_string(event)}\n"
+            
             # Якщо повідомлення стає занадто довгим, розбиваємо
             if len(chunk) + len(line) > 3500:
                 await callback.message.answer(chunk, disable_web_page_preview=True, parse_mode="HTML")
@@ -117,10 +116,10 @@ async def process_filter(callback: types.CallbackQuery):
                 chunk += line
         
         if chunk:
-                await callback.message.answer(chunk, disable_web_page_preview=True, parse_mode="HTML")
+            await callback.message.answer(chunk, disable_web_page_preview=True, parse_mode="HTML")
             
     else:
-        # Для "Сьогодні", "Тиждень" — показуємо картками
+
         for event in events:
             text_display = f"<b>{event['date']}</b>: {decode_event_to_string(event)}"
             await callback.message.answer(
@@ -132,7 +131,7 @@ async def process_filter(callback: types.CallbackQuery):
 
     await callback.message.answer("🔽 Меню:", reply_markup=get_events_filter_kb())
 
-# --- 2. МАСОВИЙ ІМПОРТ (ОНОВЛЕНО) ---
+# --- 2. МАСОВИЙ ІМПОРТ ---
 @router.message(Command("import"))
 async def cmd_import(message: types.Message, state: FSMContext):
     if not is_authorized(message.from_user.id): return
@@ -141,16 +140,15 @@ async def cmd_import(message: types.Message, state: FSMContext):
 
 @router.message(CalendarStates.waiting_for_import)
 async def process_import(message: types.Message, state: FSMContext):
-    count = mass_import_events(message.from_user.id, message.text) # <--- ID
+    count = mass_import_events(message.from_user.id, message.text)
     await message.answer(f"✅ Успішно додано подій: {count}")
     await state.clear()
 
-# --- 3. РЕДАГУВАННЯ (ОНОВЛЕНО) ---
+# --- 3. РЕДАГУВАННЯ ---
 @router.callback_query(F.data.startswith("edit_evt_"))
 async def start_edit(callback: types.CallbackQuery, state: FSMContext):
     evt_id = int(callback.data.split("_")[2])
-    # Передаємо ID юзера, щоб він не міг редагувати чужі події (якщо вони колись перетнуться)
-    event = get_event_by_id(callback.from_user.id, evt_id) 
+    event = get_event_by_id(callback.from_user.id, evt_id)
     
     if not event:
         return await callback.answer("⚠️ Подія не знайдена.", show_alert=True)
@@ -165,13 +163,13 @@ async def start_edit(callback: types.CallbackQuery, state: FSMContext):
 async def finish_edit(message: types.Message, state: FSMContext):
     data = await state.get_data()
     evt_id = data.get('edit_id')
-    if update_event_text(message.from_user.id, evt_id, message.text): # <--- ID
+    if update_event_text(message.from_user.id, evt_id, message.text):
         await message.answer("✅ Зміни збережено.")
     else:
         await message.answer("❌ Помилка збереження.")
     await state.clear()
 
-# --- 4. ДОДАВАННЯ ТА ВИДАЛЕННЯ (ОНОВЛЕНО) ---
+# --- 4. ДОДАВАННЯ ТА ВИДАЛЕННЯ ---
 @router.message(Command("add"))
 async def start_add_event(message: types.Message, state: FSMContext):
     if not is_authorized(message.from_user.id): return
@@ -185,7 +183,7 @@ async def cmd_delete_event(message: types.Message):
     if len(args) < 2:
         return await message.answer("🗑 Використання: <code>/del 14.02</code> або <code>/del Назва</code>")
     
-    result = delete_event(message.from_user.id, args[1].strip()) # <--- ID
+    result = delete_event(message.from_user.id, args[1].strip())
     await message.answer(f"🗑 {result}")
 
 @router.message(AddEvent.waiting_for_date)
@@ -208,9 +206,9 @@ async def process_link(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
     try:
         saved_event = add_new_event(
-            user_id=message.from_user.id, # <--- ID
-            date=user_data['date'], 
-            name=user_data['name'], 
+            user_id=message.from_user.id,
+            date=user_data['date'],
+            name=user_data['name'],
             raw_link=message.text.strip()
         )
         preview = decode_event_to_string(saved_event)
@@ -230,8 +228,7 @@ async def cmd_manual_briefing(message: types.Message):
     status_msg = await message.answer("☕️ Збираю ранкову пресу...")
     
     parts = []
-    # Передаємо ID, щоб отримати події САМЕ ЦЬОГО юзера, а не тільки Власника
-    events_text = check_upcoming_events(message.from_user.id) 
+    events_text = check_upcoming_events(message.from_user.id)
     if events_text: parts.append(f"📅 <b>Нагадування:</b>\n{events_text}")
     
     weather_text = await get_weather_forecast()
