@@ -204,14 +204,42 @@ async def process_name(message: types.Message, state: FSMContext):
 @router.message(AddEvent.waiting_for_link)
 async def process_link(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
+    raw_text = message.text.strip()
+    final_link = None
+
+    # --- ЛОГІКА РОЗУМНОГО ПОСИЛАННЯ ---
+    if raw_text == "-":
+        final_link = None
+    
+    elif "http" in raw_text:
+        final_link = raw_text
+    elif raw_text.startswith("@"):
+        # Якщо це @юзернейм: -> https://t.me/toha
+        final_link = f"https://t.me/{raw_text[1:]}"
+
+    elif raw_text.isdigit():
+
+        final_link = f"tg://user?id={raw_text}"
+
+    elif raw_text.startswith("+"):
+        # Номер телефону: +380... -> https://t.me/+380...
+        final_link = f"https://t.me/{raw_text}"
+        
+    else:
+
+        final_link = None 
+
+    # --- ЗБЕРЕЖЕННЯ ---
     try:
         saved_event = add_new_event(
-            user_id=message.from_user.id,
-            date=user_data['date'],
-            name=user_data['name'],
-            raw_link=message.text.strip()
+            user_id=message.from_user.id, 
+            date=user_data['date'], 
+            name=user_data['name'], 
+            raw_link=final_link
         )
+        
         preview = decode_event_to_string(saved_event)
+        
         await message.answer(
             f"✅ <b>Збережено!</b>\n📅 {saved_event['date']}: {preview}", 
             disable_web_page_preview=True,
@@ -219,6 +247,7 @@ async def process_link(message: types.Message, state: FSMContext):
         )
     except Exception as e:
         await message.answer(f"❌ Помилка: {e}")
+    
     await state.clear()
 
 # --- ТЕСТ БРИФІНГУ ---
