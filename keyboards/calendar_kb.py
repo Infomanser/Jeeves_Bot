@@ -5,26 +5,20 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 def get_events_filter_kb() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     
-    # Кнопка "Всі події" на всю ширину
+    # 1 ряд: Сьогодні і Тиждень
     builder.row(
-        InlineKeyboardButton(text="📋 Показати всі події", callback_data="cal_all")
+        InlineKeyboardButton(text="🔥 Сьогодні", callback_data="cal_today"),
+        InlineKeyboardButton(text="👀 Тиждень", callback_data="cal_week")
     )
-
-    # Сезони по 2 в ряд
+    # 2 ряд: Місяць і Всі
     builder.row(
-        InlineKeyboardButton(text="❄️ Зима", callback_data="cal_winter"),
-        InlineKeyboardButton(text="🌱 Весна", callback_data="cal_spring")
-    )
-    builder.row(
-        InlineKeyboardButton(text="☀️ Літо", callback_data="cal_summer"),
-        InlineKeyboardButton(text="🍂 Осінь", callback_data="cal_autumn")
+        InlineKeyboardButton(text="📅 Місяць", callback_data="cal_month"),
+        InlineKeyboardButton(text="📋 Всі події", callback_data="cal_all")
     )
     
     return builder.as_markup()
 
 def get_edit_kb(event_id: int) -> InlineKeyboardMarkup:
-    """Кнопки під конкретною подією (Редагувати / Видалити)"""
-
     builder = InlineKeyboardBuilder()
     builder.row(
         InlineKeyboardButton(text="✏️ Ред.", callback_data=f"edit_evt_{event_id}")
