@@ -112,7 +112,7 @@ async def process_filter(callback: types.CallbackQuery):
         
         chunk = "📋 <b>Всі ваші події:</b>\n\n"
         current_month = -1
-        current_year = datetime.datetime.now().year
+        current_year = datetime.now().year
         
         for event in events:
             try:
