@@ -1,6 +1,6 @@
 # handlers/lifestyle.py
 import html
-import datetime
+from datetime import datetime
 from aiogram import Router, types, F
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command
@@ -106,7 +106,7 @@ async def process_filter(callback: types.CallbackQuery):
     if filter_type == "all":
         months_names = [
             "Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень",
-            "Липень", "Серепень", "Вересень", "Жовтень", "Листопад", "Грудень"
+            "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"
         ]
         days_ua = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"]
         
