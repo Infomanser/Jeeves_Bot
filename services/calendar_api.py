@@ -161,6 +161,20 @@ def get_event_by_id(user_id: int, evt_id: int):
         if e.get('id') == evt_id: return e
     return None
 
+def get_date_with_day(date_str: str) -> str:
+    """Перетворює '29.12' на 'Неділя, 29.12'"""
+    try:
+        d, m = map(int, date_str.split('.'))
+        current_year = datetime.now().year
+        dt = datetime(current_year, m, d)
+        
+        days = ["Понеділок", "Вівторок", "Середа", "Четвер", "П'ятниця", "Субота", "Неділя"]
+        day_name = days[dt.weekday()]
+        
+        return f"{day_name}, {date_str}"
+    except:
+        return date_str
+
 def update_event_text(user_id: int, evt_id: int, new_text: str):
     events = get_user_events(user_id)
     for e in events:

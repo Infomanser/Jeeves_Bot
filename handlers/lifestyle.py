@@ -101,14 +101,35 @@ async def process_filter(callback: types.CallbackQuery):
 
     await callback.message.delete()
     
-
+    # ЛОГІКА ДЛЯ "ВСІ ПОДІЇ" З РОЗБИТТЯМ ПО МІСЯЦЯХ
     if filter_type == "all":
+        months_names = [
+            "Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень",
+            "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"
+        ]
+        
         chunk = "📋 <b>Всі ваші події:</b>\n\n"
+        current_month = -1
         
         for event in events:
+            try:
+                # Дістаємо номер місяця з дати "14.02"
+                m = int(event['date'].split('.')[1])
+            except:
+                m = 0
+
+            # Додаємо заголовок місяця, якщо він змінився
+            if m != current_month:
+                month_header = f"\n📅 <b>--- {months_names[m-1].upper()} ---</b>\n"
+                if len(chunk) + len(month_header) > 3500:
+                    await callback.message.answer(chunk, disable_web_page_preview=True, parse_mode="HTML")
+                    chunk = month_header
+                else:
+                    chunk += month_header
+                current_month = m
+
             line = f"• <b>{event['date']}</b>: {decode_event_to_string(event)}\n"
             
-            # Якщо повідомлення стає занадто довгим, розбиваємо
             if len(chunk) + len(line) > 3500:
                 await callback.message.answer(chunk, disable_web_page_preview=True, parse_mode="HTML")
                 chunk = line
@@ -119,9 +140,19 @@ async def process_filter(callback: types.CallbackQuery):
             await callback.message.answer(chunk, disable_web_page_preview=True, parse_mode="HTML")
             
     else:
-
+        # Для "Сьогодні", "Тиждень", "Місяць" — показуємо картками з днями тижня
         for event in events:
-            text_display = f"<b>{event['date']}</b>: {decode_event_to_string(event)}"
+            try:
+                d, m = map(int, event['date'].split('.'))
+                dt_obj = datetime.now().replace(month=m, day=d) 
+                days_ua = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"]
+                day_label = days_ua[dt_obj.weekday()]
+                date_display = f"{day_label}, {event['date']}"
+            except:
+                date_display = event['date']
+
+            text_display = f"<b>{date_display}</b>: {decode_event_to_string(event)}"
+            
             await callback.message.answer(
                 text_display, 
                 reply_markup=get_edit_kb(event['id']), 
