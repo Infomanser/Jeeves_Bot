@@ -102,7 +102,7 @@ def get_events(user_id: int, filter_type: str):
             filtered.append(event)
         elif filter_type == "week" and 0 <= delta <= 7:
             filtered.append(event)
-        elif filter_type == "month" and 0 <= delta <= 30:
+        elif filter_type == "month" and 0 <= delta <= 31:
             filtered.append(event)
     
     if filter_type in ['week', 'month']:

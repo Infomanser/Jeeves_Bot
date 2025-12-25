@@ -145,26 +145,35 @@ async def process_filter(callback: types.CallbackQuery):
             await callback.message.answer(chunk, disable_web_page_preview=True, parse_mode="HTML")
             
     else:
-        # Для "Сьогодні", "Тиждень", "Місяць" — показуємо картками з днями тижня
+        # Для "Сьогодні", "Тиждень", "Місяць" — показуємо картками
         for event in events:
             try:
+                # 1. Формуємо дату з днем тижня
                 d, m = map(int, event['date'].split('.'))
                 dt_obj = datetime.now().replace(month=m, day=d) 
                 days_ua = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"]
                 day_label = days_ua[dt_obj.weekday()]
                 date_display = f"{day_label}, {event['date']}"
-            except:
-                date_display = event['date']
+            except Exception:
+                date_display = event.get('date', '??.??')
+
+            # 2. Безпечно дістаємо ID для кнопки
+            event_id = event.get('id')
+            
+            # Якщо ID немає, просто не додаємо клавіатуру редагування
+            kb = get_edit_kb(event_id) if event_id else None
 
             text_display = f"<b>{date_display}</b>: {decode_event_to_string(event)}"
             
-            await callback.message.answer(
-                text_display, 
-                reply_markup=get_edit_kb(event['id']), 
-                disable_web_page_preview=True, 
-                parse_mode="HTML"
-            )
-
+            try:
+                await callback.message.answer(
+                    text_display, 
+                    reply_markup=kb, 
+                    disable_web_page_preview=True, 
+                    parse_mode="HTML"
+                )
+            except Exception as e:
+                print(f"DEBUG: Помилка відправки картки: {e}")
     await callback.message.answer("🔽 Меню:", reply_markup=get_events_filter_kb())
 
 # --- 2. МАСОВИЙ ІМПОРТ ---
