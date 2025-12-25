@@ -3,7 +3,6 @@ from aiogram.filters import Command
 from utils.filters import IsOwner
 # import services.termux_api as termux
 
-# Створюємо роутер і одразу кажемо: сюди пускати ТІЛЬКИ власника
 router = Router()
 router.message.filter(IsOwner()) 
 

@@ -2,38 +2,64 @@
 import json
 import os
 import html
+import base64
 from datetime import datetime, timedelta
 from config import OWNER_ID
 
 JSON_FILE = "calendar.json"
 
-# --- РОБОТА З ФАЙЛОМ (МУЛЬТИЮЗЕР) ---
+# --- РОБОТА З ФАЙЛОМ (Base64) ---
 
 def load_full_db():
     if not os.path.exists(JSON_FILE):
         return {}
     try:
-        with open(JSON_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            
+        # Читаємо файл у бінарному режимі
+        with open(JSON_FILE, "rb") as f:
+            content = f.read()
 
-            if isinstance(data, list):
-                print("⚠️ Виявлено старий формат календаря. Мігрую на Owner ID.")
-                new_db = {str(OWNER_ID): data}
-                save_full_db(new_db)
-                return new_db
-            
-            return data
-    except (json.JSONDecodeError, FileNotFoundError):
+        # Спроба 1: Пробуємо розкодувати Base64
+        try:
+            # Декодуємо Base64 -> отримуємо JSON рядок -> перетворюємо в словник
+            json_str = base64.b64decode(content).decode('utf-8')
+            data = json.loads(json_str)
+        except Exception:
+            # Спроба 2: Якщо впала помилка, значить файл ще "чистий" (не зашифрований)
+            print("⚠️ Календар не зашифрований. Мігрую в Base64...")
+            try:
+                data = json.loads(content.decode('utf-8'))
+                # Одразу зберігаємо його назад вже зашифрованим
+                save_full_db(data)
+            except:
+                return {}
+
+        # АВТО-МІГРАЦІЯ структури (список -> словник)
+        if isinstance(data, list):
+            new_db = {str(OWNER_ID): data}
+            save_full_db(new_db)
+            return new_db
+        
+        return data
+
+    except Exception as e:
+        print(f"❌ Error loading DB: {e}")
         return {}
 
 def save_full_db(db_data):
-    with open(JSON_FILE, "w", encoding="utf-8") as f:
-        json.dump(db_data, f, ensure_ascii=False, indent=4)
+    try:
+        # 1. Перетворюємо словник у JSON-рядок
+        json_str = json.dumps(db_data, ensure_ascii=False)
+        # 2. Кодуємо цей рядок у Base64
+        encrypted_bytes = base64.b64encode(json_str.encode('utf-8'))
+        
+        # 3. Записуємо набір байтів у файл
+        with open(JSON_FILE, "wb") as f:
+            f.write(encrypted_bytes)
+    except Exception as e:
+        print(f"❌ Error saving DB: {e}")
 
 def get_user_events(user_id: int):
     db = load_full_db()
-
     return db.get(str(user_id), [])
 
 def save_user_events(user_id: int, events: list):
@@ -41,16 +67,10 @@ def save_user_events(user_id: int, events: list):
     db[str(user_id)] = events
     save_full_db(db)
 
-# --- ОСНОВНА ЛОГІКА ---
-
 def get_events(user_id: int, filter_type: str):
-    """
-    filter_type: 'today', 'week', 'month', 'all'
-    """
     events = get_user_events(user_id)
     if not events: return []
 
-    # Сортування (Місяць, День)
     def sort_key(e):
         try:
             d, m = map(int, e['date'].split('.'))
@@ -85,7 +105,6 @@ def get_events(user_id: int, filter_type: str):
         elif filter_type == "month" and 0 <= delta <= 30:
             filtered.append(event)
     
-    # Сортування найближчих подій по дельті
     if filter_type in ['week', 'month']:
         def delta_sort(e):
             d, m = map(int, e['date'].split('.'))
@@ -100,8 +119,6 @@ def get_events(user_id: int, filter_type: str):
 
 def add_new_event(user_id: int, date: str, name: str, raw_link: str = "-"):
     events = get_user_events(user_id)
-    
-    # ID тепер унікальне в межах юзера
     new_id = max([e.get('id', 0) for e in events], default=0) + 1
     
     link = None
@@ -168,8 +185,6 @@ def mass_import_events(user_id: int, text_block: str):
     save_user_events(user_id, events)
     return count
 
-# --- ДОПОМІЖНІ ---
-
 def decode_event_to_string(event):
     txt = html.escape(event['text'])
     if event.get('link'):
@@ -177,23 +192,13 @@ def decode_event_to_string(event):
     return txt
 
 def check_upcoming_events(user_id: int = OWNER_ID) -> str:
-    """
-    Формує текст звіту для конкретного юзера.
-    За замовчуванням - для Власника (для main.py).
-    """
-    events = get_events(user_id, "week")
-    if not events:
-
-        pass 
-
-
-    all_events = get_user_events(user_id)
-    if not all_events: return None
+    events = get_user_events(user_id)
+    if not events: return None
     
     today = datetime.now()
     list_today, list_tomorrow, list_week = [], [], []
     
-    for event in all_events:
+    for event in events:
         try: d, m = map(int, event['date'].split('.'))
         except: continue
         try: evt_date = datetime(today.year, m, d)
