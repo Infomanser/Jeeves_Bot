@@ -189,10 +189,28 @@ async def cmd_delete_event(message: types.Message):
 @router.message(AddEvent.waiting_for_date)
 async def process_date(message: types.Message, state: FSMContext):
     text = message.text.strip()
-    if "." not in text or not any(char.isdigit() for char in text):
-        return await message.answer("⚠️ Некоректний формат.")
-    await state.update_data(date=text)
-    await message.answer("📝 <b>Крок 2/3:</b> Назва події:")
+    
+    # Спроба розібрати дату
+    try:
+        if "." not in text:
+            raise ValueError
+        
+        parts = text.split('.')
+        d = int(parts[0])
+        m = int(parts[1])
+
+        if not (1 <= m <= 12):
+            return await message.answer("⚠️ Такого місяця не існує (1-12). Спробуйте ще раз.")
+        if not (1 <= d <= 31):
+            return await message.answer("⚠️ Такого дня не існує (1-31). Спробуйте ще раз.")
+            
+        clean_date = f"{d:02d}.{m:02d}"
+
+    except ValueError:
+        return await message.answer("⚠️ Некоректний формат. Введіть дату як <code>14.02</code> (день.місяць)")
+
+    await state.update_data(date=clean_date)
+    await message.answer(f"✅ Дата прийнята: <b>{clean_date}</b>\n\n📝 <b>Крок 2/3:</b> Назва події:")
     await state.set_state(AddEvent.waiting_for_name)
 
 @router.message(AddEvent.waiting_for_name)
