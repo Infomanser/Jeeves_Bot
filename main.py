@@ -107,6 +107,12 @@ async def main():
 
 if __name__ == "__main__":
     try:
+        from migrate_json_to_db import migrate_calendar
+        migrate_calendar() 
+    except ImportError:
+        logging.warning("Мігратор не знайдено, пропускаємо крок міграції.")
+
+    try:
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logging.info("Bot stopped!")
