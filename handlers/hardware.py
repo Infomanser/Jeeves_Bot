@@ -3,6 +3,8 @@ import html
 import subprocess
 import os
 import glob
+import sqlite3
+from datetime import datetime
 from aiogram import Router, types, F
 from aiogram.filters import Command, CommandObject
 
@@ -60,7 +62,7 @@ async def btn_find_phone(message: types.Message):
     if not is_owner(message.from_user.id): return
     
     await message.answer("📣 <b>УВАГА!</b> Вмикаю сирену!")
-    subprocess.run(["termux-tts-speak", "Увага! Я тут! Зверни на мене увагу!"])
+    subprocess.run(["termux-tts-speak", "Увага! Я тут! Зверни на мене увагу!" * 10])
 
 @router.message(Command("say"))
 async def cmd_say(message: types.Message, command: CommandObject):
@@ -111,12 +113,12 @@ async def handle_restarts(message: types.Message):
 # --- 5. ЛОГИ (Тільки Власник) ---
 
 @router.message(F.text == "📄 Логи")
+@router.message(F.text == "Логи")
 async def cmd_logs(message: types.Message):
     if not is_owner(message.from_user.id): return
     
     await message.answer("📋 Читаю останні 20 рядків логів...")
     try:
-        # PM2 знає де логи, тому просто просимо його вивести останні
         result = subprocess.check_output(
             ["pm2", "logs", "--lines", "20", "--nostream", "--raw"], 
             stderr=subprocess.STDOUT
@@ -131,24 +133,19 @@ async def cmd_logs(message: types.Message):
 async def cmd_err_logs(message: types.Message):
     if not is_owner(message.from_user.id): return
     
-    # 1. Знаходимо папку логів PM2
     home_dir = os.path.expanduser("~")
     pm2_log_dir = os.path.join(home_dir, ".pm2", "logs")
     
-    # 2. Шлях до головного файлу помилок
     main_error_log = os.path.join(pm2_log_dir, "Jeeves-error.log")
     
     target_file = main_error_log
     info_msg = "📋 Логи помилок (Active):"
 
-    # 3. Перевіряємо, чи існує файл і чи він не пустий
     if os.path.exists(main_error_log) and os.path.getsize(main_error_log) == 0:
-        # Якщо основний файл пустий (0 байт), шукаємо в ротації (Jeeves-error__YYYY...)
         search_pattern = os.path.join(pm2_log_dir, "Jeeves-error__*.log")
         rotated_files = sorted(glob.glob(search_pattern))
         
         if rotated_files:
-            # Беремо останній (найсвіжіший) файл
             target_file = rotated_files[-1]
             info_msg = f"📋 Лог пустий. Читаю архів:\n{os.path.basename(target_file)}"
         else:
@@ -157,7 +154,6 @@ async def cmd_err_logs(message: types.Message):
     await message.answer(info_msg)
 
     try:
-        # Читаємо останні 30 рядків через tail (щоб не вантажити весь файл)
         output = subprocess.check_output(["tail", "-n", "30", target_file]).decode("utf-8")
         
         if output.strip():

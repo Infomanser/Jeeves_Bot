@@ -1,13 +1,14 @@
 # main.py
 import asyncio
 import logging
+import sqlite3
 from datetime import datetime
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 
 from config import TOKEN, LOG_FILE, OWNER_ID
-from handlers import common, hardware, lifestyle, public
+from handlers import common, hardware, lifestyle, public, notes
 from utils.logger import setup_logging
 
 # СЕРВІСИ ДЛЯ ЗВІТІВ
@@ -15,8 +16,9 @@ from services import termux_api as hardware_service
 from services.calendar_api import check_upcoming_events
 from services.weather_api import get_weather_forecast
 from services.news_api import get_fresh_news
+from services.db_manager import init_db
 
-# --- СИСТЕМНИЙ РЕПОРТ (Кожні 4 години: 00, 04, 08...) ---
+# --- СИСТЕМНИЙ РЕПОРТ  ---
 async def scheduled_reporter(bot: Bot):
     target_hours = [0, 4, 8, 12, 16, 20]
     while True:
@@ -54,7 +56,6 @@ async def morning_briefing(bot: Bot):
                     parts.append(f"📅 <b>Нагадування:</b>\n{events_text}")
                 
                 # 2. ПОГОДА
-                # get_weather_forecast повертає готовий текст
                 weather_text = await get_weather_forecast()
                 if weather_text:
                     parts.append(f"{weather_text}")
@@ -66,7 +67,6 @@ async def morning_briefing(bot: Bot):
 
                 # ВІДПРАВКА
                 if parts:
-                    # Можна відправити одним великим повідомленням (розділивши лінією)
                     full_text = "\n\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n\n".join(parts)
                     await bot.send_message(OWNER_ID, f"☕️ <b>Ранковий брифінг:</b>\n\n{full_text}", disable_web_page_preview=True)
                 else:
@@ -86,6 +86,7 @@ async def on_startup(bot: Bot):
     except: pass
 
 async def main():
+    init_db()
     setup_logging(LOG_FILE)
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher()
@@ -93,6 +94,7 @@ async def main():
     dp.include_router(common.router)
     dp.include_router(hardware.router)
     dp.include_router(lifestyle.router)
+    dp.include_router(notes.router)
     dp.include_router(public.router)
 
     # ЗАПУСК ФОНОВИХ ЗАДАЧ

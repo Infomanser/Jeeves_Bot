@@ -1,5 +1,6 @@
 # handlers/lifestyle.py
 import html
+import sqlite3
 from datetime import datetime
 from aiogram import Router, types, F
 from aiogram.fsm.context import FSMContext
@@ -53,6 +54,7 @@ async def cmd_set_city(message: types.Message, state: FSMContext):
 
 @router.message(Command("weather"))
 @router.message(F.text == "🌦 Погода")
+@router.message(F.text == "Погода")
 async def cmd_weather(message: types.Message):
     if not is_authorized(message.from_user.id): return
     sent_msg = await message.answer("🌤 Дивлюсь у вікно...")

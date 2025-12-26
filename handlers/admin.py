@@ -1,8 +1,11 @@
+# handlers/admin.py
+import sqlite3
+from datetime import datetime
 from aiogram import Router, types
 from aiogram.filters import Command
 from utils.filters import IsAdmin
 
-# Сюди пускаємо всіх зі списку ADMIN_IDS (ти туди теж входиш)
+# Сюди пускаємо всіх зі списку ADMIN_IDS
 router = Router()
 router.message.filter(IsAdmin()) 
 

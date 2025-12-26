@@ -1,3 +1,5 @@
+import sqlite3
+from datetime import datetime
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from config import OWNER_ID, ADMIN_IDS
@@ -13,17 +15,17 @@ def get_main_menu(user_id: int) -> ReplyKeyboardMarkup:
 
     # --- ВЛАСНИК ---
     if user_id == OWNER_ID:
-        # 1 ряд: Статус, Календар, Новини
+        # 1 ряд: Статус, Ліхтар
         builder.row(
             KeyboardButton(text="📲 Статус"),
-            KeyboardButton(text="📅 Календар"),
-            KeyboardButton(text="📰 Новини")
-        )
-        # 2 ряд: "Знайти телефон", Ліхтар
-        builder.row(
-            KeyboardButton(text="📢 Знайти телефон"),
             KeyboardButton(text="🔦 Увімк"),
             KeyboardButton(text="🌑 Вимк")
+        )
+        # 2 ряд: Календар, Погода, Новини
+        builder.row(
+            KeyboardButton(text="📄 Погода"),
+            KeyboardButton(text="📅 Календар"),
+            KeyboardButton(text="📰 Новини")
         )
         # 3 ряд: Рестарти системні
         builder.row(
@@ -37,10 +39,12 @@ def get_main_menu(user_id: int) -> ReplyKeyboardMarkup:
             KeyboardButton(text="🔄 Дживс"),
             KeyboardButton(text="💾 Пам'ять")
         )
-        # 5 ряд: Логи
+        # 5 ряд: Логи, Знайти телефон
         builder.row(
+            KeyboardButton(text="📢 Знайти телефон"),
             KeyboardButton(text="📄 Логи"),
             KeyboardButton(text="❌ Еrror log")
+
         )
 
     # --- АДМІНИ (ті, хто не власник, але є в списку) ---

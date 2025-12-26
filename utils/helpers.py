@@ -1,4 +1,5 @@
 # utils/helpers.py
+import sqlite3
 from datetime import datetime
 
 def get_time_greeting() -> str:

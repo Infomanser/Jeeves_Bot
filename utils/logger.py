@@ -1,6 +1,8 @@
 # utils/logger.py
 import logging
 from logging.handlers import TimedRotatingFileHandler
+import sqlite3
+from datetime import datetime
 
 def setup_logging(log_file):
     logging.basicConfig(

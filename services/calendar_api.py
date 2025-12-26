@@ -3,6 +3,7 @@ import json
 import os
 import html
 import base64
+import sqlite3
 from datetime import datetime, timedelta
 from config import OWNER_ID
 
