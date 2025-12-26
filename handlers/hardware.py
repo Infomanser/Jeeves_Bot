@@ -46,13 +46,13 @@ async def cmd_memory_check(message: types.Message):
 @router.message(F.text == "🔦 Увімк")
 async def cmd_light_on(message: types.Message):
     if not is_owner(message.from_user.id): return
-    hardware.torch_control('on')
+    hardware.torch('on')
     await message.answer("🔦 Ліхтар увімкнено.")
 
 @router.message(F.text == "🌑 Вимк")
 async def cmd_light_off(message: types.Message):
     if not is_owner(message.from_user.id): return
-    hardware.torch_control('off')
+    hardware.torch('off')
     await message.answer("🌑 Ліхтар вимкнено.")
 
 # --- 3. TTS (ЗНАЙТИ ТЕЛЕФОН) ---
