@@ -44,12 +44,11 @@ def format_pm2_uptime(uptime_ms):
     elif hours > 0: return f"{hours}г {minutes}хв"
     else: return f"{minutes}хв"
 
-# --- 🔦 ХАРДВЕРНІ ФУНКЦІЇ (Ми їх повернули!) ---
+# --- 🔦 ХАРДВЕРНІ ФУНКЦІЇ ---
 
 def torch(state: str):
     """Керування ліхтариком (on/off)"""
     try:
-        # termux-torch on / termux-torch off
         subprocess.Popen(["termux-torch", state])
     except Exception as e:
         print(f"Error torch: {e}")
@@ -57,10 +56,16 @@ def torch(state: str):
 def tts_speak(text: str):
     """Озвучка тексту (Text-to-Speech)"""
     try:
-        # Використовуємо Popen, щоб не блокувати бота поки він говорить
         subprocess.Popen(["termux-tts-speak", text])
     except Exception as e:
         print(f"Error TTS: {e}")
+
+def tts_stop():
+    """Аварійна зупинка голосу (Kill Switch)"""
+    try:
+        subprocess.run(["pkill", "-f", "termux-tts-speak"], check=False)
+    except Exception:
+        pass
 
 # --- ЗВІТИ ТА PM2 ---
 
@@ -92,26 +97,49 @@ def get_pm2_stats():
 
 def get_full_system_report() -> str:
     current_time = datetime.now().strftime("%H:%M")
-    raw_uptime = run_command(["uptime", "-p"])
-    uptime_ua = ukrainian_uptime(raw_uptime.replace("up ", ""))
+    
+    # Uptime
+    try:
+        raw_uptime = run_command(["uptime", "-p"])
+        uptime_ua = ukrainian_uptime(raw_uptime.replace("up ", ""))
+    except:
+        uptime_ua = "Невідомо"
+        
     header = f"🕰 <b>System ({current_time}):</b>\n⏱️ В мережі: {uptime_ua}"
 
-    # Батарея з тайм-аутом
+    # --- 🔋 BATTERY LOGIC (FIXED) ---
     try:
-        result = subprocess.run(["termux-battery-status"], capture_output=True, text=True, timeout=2)
+        # 1. Отримуємо дані
+        result = subprocess.run(["termux-battery-status"], capture_output=True, text=True, timeout=3)
         bat_data = json.loads(result.stdout)
+        
+        # 2. Парсимо змінні
         p = bat_data.get("percentage", 0)
         temp = bat_data.get("temperature", 0)
         st = bat_data.get("status", "Unknown").upper()
-        st_ua = "заряджається" if "CHARGING" in st else ("автономно" if "DISCHARGING" in st else "повний")
-        icon = "⚡️" if "CHARGING" in st else ("🪫" if p < 20 else "🔋")
-        battery_info = f"🔋 Акум: {icon} {p}% ({st_ua}, {temp}°C)"
-    except subprocess.TimeoutExpired:
-        battery_info = "🔋 Акум: ⏳ (API не відповідає)"
-    except:
-        battery_info = "🔋 Акум: Невідомо"
 
-    # RAM
+        # 3. Визначаємо статус (через строге порівняння ==)
+        if st == "CHARGING":
+            st_ua = "заряджається"
+            icon = "⚡️"
+        elif st == "DISCHARGING":
+            st_ua = "автономно"
+            icon = "🪫" if p < 20 else "🔋"
+        elif st == "FULL":
+            st_ua = "повний"
+            icon = "🔋"
+        else:
+            st_ua = "не заряджається" # Status: NOT CHARGING
+            icon = "🔋"
+
+        battery_info = f"🔋 Акум: {icon} {p}% ({st_ua}, {temp}°C)"
+    
+    except subprocess.TimeoutExpired:
+        battery_info = "🔋 Акум: ⏳ (API Timeout)"
+    except Exception as e:
+        battery_info = f"🔋 Акум: ❌ Помилка ({str(e)})"
+
+    # --- 🧠 RAM ---
     try:
         ram_out = run_command(["free", "-m"])
         lines = ram_out.split('\n')
@@ -125,7 +153,7 @@ def get_full_system_report() -> str:
                 break
     except: ram_info = "🧠 ОЗП: помилка"
 
-    # Диск
+    # --- 💾 DISK ---
     try:
         output = run_command(["df", "-h", "/data"])
         parts = output.strip().split('\n')[1].split()
