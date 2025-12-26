@@ -1,13 +1,9 @@
-# handlers/hardware.py
 import html
 import subprocess
 import os
 import glob
-import sqlite3
-from datetime import datetime
 from aiogram import Router, types, F
 from aiogram.filters import Command, CommandObject
-
 
 from config import OWNER_ID, ADMIN_IDS
 from services import termux_api as hardware
@@ -21,7 +17,7 @@ def is_owner(user_id: int) -> bool:
 def is_admin(user_id: int) -> bool:
     return user_id == OWNER_ID or user_id in ADMIN_IDS
 
-# --- 1. СТАТУС ТА ПАМ'ЯТЬ ---
+# --- 1. СТАТУС ---
 
 @router.message(Command("status"))
 @router.message(F.text == "📲 Статус")
@@ -35,24 +31,21 @@ async def cmd_status(message: types.Message):
         report = report[:4090] + "..."
     await message.answer(report)
 
-@router.message(F.text == "💾 Пам'ять")
-async def cmd_memory_check(message: types.Message):
-    if not is_owner(message.from_user.id): return
-    info = hardware.get_storage_info()
-    await message.answer(f"💾 <b>Сховище:</b>\n{info}")
+# (Функцію пам'яті видалено, бо вона тепер частина статусу)
 
 # --- 2. ЛІХТАР (Тільки Власник) ---
 
 @router.message(F.text == "🔦 Увімк")
 async def cmd_light_on(message: types.Message):
     if not is_owner(message.from_user.id): return
-    hardware.termux-torch('on')
+    # ВИПРАВЛЕНО: назва функції в сервісі 'torch', а не 'torch_control'
+    hardware.torch('on')
     await message.answer("🔦 Ліхтар увімкнено.")
 
 @router.message(F.text == "🌑 Вимк")
 async def cmd_light_off(message: types.Message):
     if not is_owner(message.from_user.id): return
-    hardware.termux-torch('off')
+    hardware.torch('off')
     await message.answer("🌑 Ліхтар вимкнено.")
 
 # --- 3. TTS (ЗНАЙТИ ТЕЛЕФОН) ---
@@ -62,7 +55,8 @@ async def btn_find_phone(message: types.Message):
     if not is_owner(message.from_user.id): return
     
     await message.answer("📣 <b>УВАГА!</b> Вмикаю сирену!")
-    subprocess.run(["termux-tts-speak", "Увага! Я тут! Зверни на мене увагу!" * 10])
+    # Використовуємо наш враппер, щоб не блокувати бота (там Popen)
+    hardware.tts_speak("Увага! Я тут! Зверни на мене увагу! " * 5)
 
 @router.message(Command("say"))
 async def cmd_say(message: types.Message, command: CommandObject):
@@ -71,7 +65,7 @@ async def cmd_say(message: types.Message, command: CommandObject):
     if not command.args:
         return await message.answer("🗣 Напиши: <code>/say Текст</code>")
     
-    subprocess.run(["termux-tts-speak", command.args])
+    hardware.tts_speak(command.args)
     await message.answer(f"🗣 Кажу: <i>{html.escape(command.args)}</i>")
 
 # --- 4. РЕСТАРТИ СЕРВІСІВ (PM2) ---
@@ -104,11 +98,13 @@ async def handle_restarts(message: types.Message):
     if service_name == "Jeeves":
         await message.answer("♻️ Йду на перезавантаження. Побачимось за мить! 👋")
     
-    if hardware.restart_pm2_service(service_name):
+    # ВИПРАВЛЕНО: Прямий виклик PM2 тут, бо в сервісі цієї функції немає
+    try:
+        subprocess.run(["pm2", "restart", service_name], check=True)
         if service_name != "Jeeves":
             await message.answer(f"✅ {message.text}: Успішно!")
-    else:
-        await message.answer(f"❌ {message.text}: Помилка PM2 (див. логи).")
+    except subprocess.CalledProcessError:
+        await message.answer(f"❌ {message.text}: Помилка PM2.")
 
 # --- 5. ЛОГИ (Тільки Власник) ---
 
