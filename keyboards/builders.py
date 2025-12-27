@@ -29,7 +29,8 @@ def get_main_menu(user_id: int) -> ReplyKeyboardMarkup:
         builder.row(
             KeyboardButton(text="📅 Календар"),
             KeyboardButton(text="🌦 Погода"),
-            KeyboardButton(text="📰 Новини")
+            KeyboardButton(text="📰 Новини"),
+            KeyboardButton(text="🛒 Перевірка цін в АТБ")
         )
         builder.row(
             KeyboardButton(text="📢 Знайти телефон"),
@@ -91,7 +92,8 @@ def get_info_menu() -> ReplyKeyboardMarkup:
     builder.row(
         KeyboardButton(text="🌦 Погода"),
         KeyboardButton(text="📅 Календар"),
-        KeyboardButton(text="📰 Новини")
+        KeyboardButton(text="📰 Новини"),
+        KeyboardButton(text="🛒 Перевірка цін в АТБ")
     )
     builder.row(KeyboardButton(text="⬅️ Назад"))
     return builder.as_markup(resize_keyboard=True)

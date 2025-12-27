@@ -21,6 +21,8 @@ from services.calendar_api import (
 from keyboards.calendar_kb import get_events_filter_kb, get_edit_kb
 from services.weather_api import get_weather_forecast, search_city, set_city_coords
 from services.news_api import get_fresh_news
+# ✅ Ось тут ми імпортуємо парсер, тому писати його код внизу НЕ ТРЕБА
+from services.price_parser import search_atb
 
 router = Router()
 
@@ -103,7 +105,7 @@ async def process_filter(callback: types.CallbackQuery):
 
     await callback.message.delete()
     
-    # ЛОГІКА ДЛЯ "ВСІ ПОДІЇ" З РОЗБИТТЯМ ПО МІСЯЦЯХ ТА ДНЯХ
+    # ЛОГІКА ДЛЯ "ВСІ ПОДІЇ"
     if filter_type == "all":
         months_names = [
             "Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень",
@@ -117,20 +119,15 @@ async def process_filter(callback: types.CallbackQuery):
         
         for event in events:
             try:
-                
                 date_parts = event['date'].strip().split('.')
                 d_val = int(date_parts[0])
                 m_val = int(date_parts[1])
                 
-                
                 dt_obj = datetime(current_year, m_val, d_val)
                 day_label = days_ua[dt_obj.weekday()]
             except Exception as e:
-               
-                print(f"DEBUG: Day calculation error for {event.get('date')}: {e}")
                 day_label = "??"
 
-            # Додаємо заголовок місяця, якщо він змінився
             if m_val != current_month:
                 month_header = f"\n📅 <b>--- {months_names[m_val-1].upper()} ---</b>\n"
                 if len(chunk) + len(month_header) > 3500:
@@ -140,7 +137,6 @@ async def process_filter(callback: types.CallbackQuery):
                     chunk += month_header
                 current_month = m_val
 
-            # Формуємо рядок: Пн, 25.12: Назва
             line = f"• {day_label}, <b>{event['date']}</b>: {decode_event_to_string(event)}\n"
             
             if len(chunk) + len(line) > 3500:
@@ -153,10 +149,9 @@ async def process_filter(callback: types.CallbackQuery):
             await callback.message.answer(chunk, disable_web_page_preview=True, parse_mode="HTML")
             
     else:
-        # Для "Сьогодні", "Тиждень", "Місяць" — показуємо картками
+        # Для карток
         for event in events:
             try:
-                # 1. Формуємо дату з днем тижня
                 d, m = map(int, event['date'].split('.'))
                 dt_obj = datetime.now().replace(month=m, day=d) 
                 days_ua = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"]
@@ -165,12 +160,8 @@ async def process_filter(callback: types.CallbackQuery):
             except Exception:
                 date_display = event.get('date', '??.??')
 
-            # 2. Безпечно дістаємо ID для кнопки
             event_id = event.get('id')
-            
-            # Якщо ID немає, просто не додаємо клавіатуру редагування
             kb = get_edit_kb(event_id) if event_id else None
-
             text_display = f"<b>{date_display}</b>: {decode_event_to_string(event)}"
             
             try:
@@ -180,8 +171,8 @@ async def process_filter(callback: types.CallbackQuery):
                     disable_web_page_preview=True, 
                     parse_mode="HTML"
                 )
-            except Exception as e:
-                print(f"DEBUG: Помилка відправки картки: {e}")
+            except Exception:
+                pass
     await callback.message.answer("🔽 Меню:", reply_markup=get_events_filter_kb())
 
 # --- 2. МАСОВИЙ ІМПОРТ ---
@@ -243,28 +234,19 @@ async def cmd_delete_event(message: types.Message):
 @router.message(AddEvent.waiting_for_date)
 async def process_date(message: types.Message, state: FSMContext):
     text = message.text.strip()
-    
-    # Спроба розібрати дату
     try:
-        if "." not in text:
-            raise ValueError
-        
+        if "." not in text: raise ValueError
         parts = text.split('.')
         d = int(parts[0])
         m = int(parts[1])
-
-        if not (1 <= m <= 12):
-            return await message.answer("⚠️ Такого місяця не існує (1-12). Спробуйте ще раз.")
-        if not (1 <= d <= 31):
-            return await message.answer("⚠️ Такого дня не існує (1-31). Спробуйте ще раз.")
-            
+        if not (1 <= m <= 12) or not (1 <= d <= 31):
+            return await message.answer("⚠️ Некоректна дата.")
         clean_date = f"{d:02d}.{m:02d}"
-
     except ValueError:
-        return await message.answer("⚠️ Некоректний формат. Введіть дату як <code>14.02</code> (день.місяць)")
+        return await message.answer("⚠️ Формат: <code>14.02</code>")
 
     await state.update_data(date=clean_date)
-    await message.answer(f"✅ Дата прийнята: <b>{clean_date}</b>\n\n📝 <b>Крок 2/3:</b> Назва події:")
+    await message.answer(f"✅ Дата: <b>{clean_date}</b>\n📝 <b>Крок 2/3:</b> Назва:")
     await state.set_state(AddEvent.waiting_for_name)
 
 @router.message(AddEvent.waiting_for_name)
@@ -279,48 +261,49 @@ async def process_link(message: types.Message, state: FSMContext):
     raw_text = message.text.strip()
     final_link = None
 
-    # --- ЛОГІКА РОЗУМНОГО ПОСИЛАННЯ ---
-    if raw_text == "-":
-        final_link = None
-    
-    elif "http" in raw_text:
-        final_link = raw_text
-    elif raw_text.startswith("@"):
-        # Якщо це @юзернейм: -> https://t.me/toha
-        final_link = f"https://t.me/{raw_text[1:]}"
+    if raw_text != "-":
+        if "http" in raw_text: final_link = raw_text
+        elif raw_text.startswith("@"): final_link = f"https://t.me/{raw_text[1:]}"
+        elif raw_text.isdigit(): final_link = f"tg://user?id={raw_text}"
+        elif raw_text.startswith("+"): final_link = f"https://t.me/{raw_text}"
 
-    elif raw_text.isdigit():
-
-        final_link = f"tg://user?id={raw_text}"
-
-    elif raw_text.startswith("+"):
-        # Номер телефону: +380... -> https://t.me/+380...
-        final_link = f"https://t.me/{raw_text}"
-        
-    else:
-
-        final_link = None 
-
-    # --- ЗБЕРЕЖЕННЯ ---
     try:
-        saved_event = add_new_event(
-            user_id=message.from_user.id, 
-            date=user_data['date'], 
-            name=user_data['name'], 
-            raw_link=final_link
-        )
-        
+        saved_event = add_new_event(message.from_user.id, user_data['date'], user_data['name'], final_link)
         preview = decode_event_to_string(saved_event)
-        
-        await message.answer(
-            f"✅ <b>Збережено!</b>\n📅 {saved_event['date']}: {preview}", 
-            disable_web_page_preview=True,
-            parse_mode="HTML"
-        )
+        await message.answer(f"✅ <b>Збережено!</b>\n📅 {saved_event['date']}: {preview}", disable_web_page_preview=True, parse_mode="HTML")
     except Exception as e:
         await message.answer(f"❌ Помилка: {e}")
-    
     await state.clear()
+
+# --- 5. ЦІНИ (АТБ) ---
+@router.message(Command("price"))
+@router.message(F.text == "🛒 Перевірка цін в АТБ")
+@router.message(F.text.lower().in_({"ціна", "прайс", "кеш"}))
+async def cmd_check_price(message: types.Message):
+    if not is_authorized(message.from_user.id): return
+
+    args = message.text.split(maxsplit=1)
+    
+    # Якщо прийшла просто кнопка "Перевірка цін...", питаємо що шукати
+    if len(args) < 2 and message.text != "/price":
+        # Якщо юзер просто написав "ціна" або натиснув кнопку без товару
+        await message.answer("🛒 Що саме шукати? Напиши: <code>/price гречка</code>", parse_mode="HTML")
+        return
+
+    # Якщо команда /price без аргументів
+    if len(args) < 2:
+        await message.answer("🛒 Приклад: <code>/price гречка</code>", parse_mode="HTML")
+        return
+    
+    query = args[1]
+    wait_msg = await message.answer(f"🔎 Шукаю <b>{html.escape(query)}</b> в АТБ...", parse_mode="HTML")
+    
+    try:
+        # Викликаємо функцію з імпортованого файлу, а не з цього
+        result = search_atb(query)
+        await wait_msg.edit_text(f"🏪 <b>АТБ (Твій магазин):</b>\n\n{result}", parse_mode="HTML")
+    except Exception as e:
+        await wait_msg.edit_text(f"❌ Сталася помилка: {e}")
 
 # --- ТЕСТ БРИФІНГУ ---
 @router.message(Command("briefing"))
@@ -340,10 +323,6 @@ async def cmd_manual_briefing(message: types.Message):
 
     if parts:
         full_text = "\n\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n\n".join(parts)
-        await status_msg.edit_text(
-            f"☕️ <b>Ранковий брифінг:</b>\n\n{full_text}", 
-            disable_web_page_preview=True,
-            parse_mode="HTML"
-        )
+        await status_msg.edit_text(f"☕️ <b>Ранковий брифінг:</b>\n\n{full_text}", disable_web_page_preview=True, parse_mode="HTML")
     else:
         await status_msg.edit_text("☕️ Доброго ранку! Новин та подій немає.")
