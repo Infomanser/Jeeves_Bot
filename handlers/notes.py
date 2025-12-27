@@ -1,5 +1,6 @@
 # handlers/notes.py
 import os
+import re
 from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -218,6 +219,7 @@ def save_note_to_db(user_id, content, tags, file_id=None, media_type=None):
 # --- 6. ПЕРЕГЛЯД ТА ПОШУК ---
 
 @router.message(F.text == "/notes")
+@router.message(F.text == "📚 База знань")
 async def show_tags(message: Message):
     chat_id = message.chat.id
     conn = get_connection()
@@ -341,15 +343,21 @@ async def view_single_note(callback: CallbackQuery):
     file_id = row['file_id']
     media_type = row['media_type']
 
-    buttons = [
-        [InlineKeyboardButton(text="🗑 Видалити", callback_data=f"del_note:{note_id}:{tag_context}")],
-        [InlineKeyboardButton(text="🔙 Назад до списку", callback_data=f"list_notes:{tag_context}")]
-    ]
+    # --- ФОРМУВАННЯ КНОПОК ---
+    buttons = []
+    url_match = re.search(r'(https?://\S+)', full_text)
+    if url_match:
+        found_url = url_match.group(0)
+        buttons.append([InlineKeyboardButton(text="🔗 Відкрити посилання", url=found_url)])
+
+    # 2. Стандартні кнопки
+    buttons.append([InlineKeyboardButton(text="🗑 Видалити", callback_data=f"del_note:{note_id}:{tag_context}")])
+    buttons.append([InlineKeyboardButton(text="🔙 Назад до списку", callback_data=f"list_notes:{tag_context}")])
+
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
 
     caption_text = f"📝 <b>Нотатка:</b>\n\n{full_text}\n\n🏷 <i>{tags}</i>"
 
-    # Видаляємо старе повідомлення (щоб уникнути мішанини фото/текст)
     await callback.message.delete()
 
     if media_type == 'photo' and file_id:
