@@ -66,7 +66,8 @@ def get_tools_menu() -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
     builder.row(
         KeyboardButton(text="📲 Статус"),
-        KeyboardButton(text="💾 Пам'ять")
+        KeyboardButton(text="💾 Пам'ять"),
+        KeyboardButton(text="💾 Бекап БД")
     )
     builder.row(
         KeyboardButton(text="🔦 Увімк"),

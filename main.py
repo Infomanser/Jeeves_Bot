@@ -16,7 +16,7 @@ from services import termux_api as hardware_service
 from services.calendar_api import check_upcoming_events
 from services.weather_api import get_weather_forecast
 from services.news_api import get_fresh_news
-from services.db_manager import init_db
+from services.db_manager import init_db, backup_database
 
 # --- СИСТЕМНИЙ РЕПОРТ  ---
 async def scheduled_reporter(bot: Bot):
@@ -26,7 +26,8 @@ async def scheduled_reporter(bot: Bot):
         if now.hour in target_hours and now.minute == 0:
             try:
                 report = hardware_service.get_full_system_report()
-                await bot.send_message(OWNER_ID, f"🕰 <b>System ({now.strftime('%H:%M')}):</b>\n{report}")
+                await bot.send_message(OWNER_ID, report)
+                
                 await asyncio.sleep(65)
             except Exception as e:
                 logging.error(f"Reporter error: {e}")
@@ -87,6 +88,7 @@ async def on_startup(bot: Bot):
 
 async def main():
     init_db()
+    backup_database()
     setup_logging(LOG_FILE)
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 

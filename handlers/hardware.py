@@ -7,6 +7,7 @@ from aiogram.filters import Command, CommandObject
 
 from config import OWNER_ID, ADMIN_IDS
 from services import termux_api as hardware
+from services.db_manager import backup_database
 
 router = Router()
 
@@ -154,3 +155,14 @@ async def cmd_err_logs(message: types.Message):
             
     except Exception as e:
         await message.answer(f"❌ Помилка читання файлу: {e}")
+
+# --- 6. РЕЗЕРВНЕ КОПІЮВАННЯ БД (Тільки Власник) ---
+@router.message(F.text == "💾 Бекап БД")
+async def force_backup(message: types.Message):
+    if message.from_user.id != OWNER_ID: return
+    
+    status, result = backup_database()
+    if status:
+        await message.answer(f"✅ **Бекап створено!**\n📂 `{result}`", parse_mode="Markdown")
+    else:
+        await message.answer(f"❌ **Помилка:** {result}")
