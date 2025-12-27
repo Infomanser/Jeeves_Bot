@@ -26,5 +26,3 @@ DEFAULT_CITY = os.getenv('DEFAULT_CITY', 'Chernihiv')
 raw_feeds = os.getenv('RSS_FEEDS', '')
 RSS_FEEDS = [url.strip() for url in raw_feeds.split(',') if url.strip()]
 
-# Network Monitoring
-MONITOR_TARGETS = int(os.getenv('MONITORING_TARGETS', 0))
