@@ -19,7 +19,10 @@ def get_main_menu(user_id: int) -> ReplyKeyboardMarkup:
             KeyboardButton(text="📚 База знань")
         )
         # 3 ряд: Пряма дія
-        builder.row(KeyboardButton(text="➕ Додати подію"))
+        builder.row(
+            KeyboardButton(text="➕ Додати подію"),
+            KeyboardButton(text="✍️ Додати нотатку")
+        )
 
     # --- АДМІН (Головна сторінка) ---
     elif user_id in ADMIN_IDS:
@@ -35,6 +38,7 @@ def get_main_menu(user_id: int) -> ReplyKeyboardMarkup:
         )
         builder.row(
             KeyboardButton(text="➕ Додати подію"),
+            KeyboardButton(text="✍️ Додати нотатку"),
             KeyboardButton(text="📚 База знань")
         )
     

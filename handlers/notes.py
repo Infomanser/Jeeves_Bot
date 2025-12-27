@@ -47,6 +47,8 @@ def check_permissions(user_id, chat_id, member_status):
 # --- 1. ДОДАВАННЯ НОТАТКИ (ТЕКСТ, ГОЛОС, ФОТО) ---
 
 @router.message(Command("note"))
+@router.message(Command("✍️ Додати нотатку"))
+@router.message(F.text.lower().in_({"нотатка", "записати", "запиши", "замітка", "запам'ятай"}))
 async def start_note(message: Message, state: FSMContext):
     user_id = message.from_user.id
     chat_id = message.chat.id
@@ -220,6 +222,7 @@ def save_note_to_db(user_id, content, tags, file_id=None, media_type=None):
 
 @router.message(F.text == "/notes")
 @router.message(F.text == "📚 База знань")
+@router.message(F.text.lower().in_({"чек", "база", "нотатки", "записи", "архів", "картотека"}))
 async def show_tags(message: Message):
     chat_id = message.chat.id
     conn = get_connection()
