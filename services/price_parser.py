@@ -1,35 +1,49 @@
 # services/price_parser.py
-from curl_cffi import requests as cffi_requests
+import cloudscraper
 from bs4 import BeautifulSoup
 import re
+import time
 
 def search_atb(query: str):
     """
     Шукає товар в АТБ (Location ID: 1158 - Чернігів).
-    Використовує curl_cffi для імітації TLS-відбитка Chrome.
+    Використовує cloudscraper + прогрів сесії (Cookies).
     """
     
-    base_url = "https://www.atbmarket.com/sch"
-    params = {
-        'lang': 'uk',
-        'location': '1158',
-        'query': query
-    }
+    # Створюємо скрапер
+    scraper = cloudscraper.create_scraper(
+        browser={
+            'browser': 'chrome',
+            'platform': 'windows',
+            'desktop': True
+        }
+    )
 
     try:
-        response = cffi_requests.get(
-            base_url, 
-            params=params, 
-            impersonate="chrome120",
-            timeout=15
-        )
+
+        scraper.get("https://www.atbmarket.com/", timeout=10)
+        
+        time.sleep(10) 
+
+        # --- ПОШУК ---
+        base_url = "https://www.atbmarket.com/sch"
+        params = {
+            'lang': 'uk',
+            'location': '1158',
+            'query': query
+        }
+
+        # Робимо запит вже з куками
+        response = scraper.get(base_url, params=params, timeout=10)
         
         if response.status_code != 200:
-            return f"⚠️ АТБ блокує (код {response.status_code})"
+            return f"⚠️ АТБ блокує (код {response.status_code}). Спробуй пізніше."
 
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        # Шукаємо картки
+        if "captcha" in soup.text.lower():
+            return "🤖 АТБ вимагає капчу. Спробуй пізніше."
+
         items = soup.select('.catalog-item') 
 
         if not items:
@@ -38,15 +52,13 @@ def search_atb(query: str):
         results = []
         for item in items[:7]: 
             try:
-                # --- НАЗВА ---
                 name_tag = item.select_one('.catalog-item__title')
                 if not name_tag: continue
                 name = name_tag.get_text(strip=True)
 
-                # --- ЦІНА ---
                 price_final = "???"
                 
-                # Варіант 1: Топ/Боттом ціна
+                # Ціна
                 price_top = item.select_one('.product-price__top')
                 price_bottom = item.select_one('.product-price__bottom') 
 
@@ -54,15 +66,13 @@ def search_atb(query: str):
                     p_m = re.sub(r'[^\d]', '', price_top.get_text())
                     p_c = re.sub(r'[^\d]', '', price_bottom.get_text())
                     price_final = f"{p_m}.{p_c} грн"
-                
-                # Варіант 2: Ціна одним шматком
                 elif item.select_one('.product-price__value'):
                     raw_text = item.select_one('.product-price__value').get_text(strip=True)
                     match = re.search(r'\d+[.,]\d+', raw_text)
                     if match:
                         price_final = f"{match.group().replace(',', '.')} грн"
 
-                # --- АКЦІЯ ---
+                # Акція
                 is_sale = bool(item.select_one('.product-price__sale'))
                 marker = "🔥" if is_sale else "📦"
                 
@@ -78,8 +88,7 @@ def search_atb(query: str):
         return "\n".join(results) if results else "🤷‍♂️ Пусто."
 
     except Exception as e:
-        return f"❌ Помилка з'єднання: {e}"
+        return f"❌ Помилка: {e}"
 
 if __name__ == "__main__":
-    print("🔎 Тестуємо новий метод обходу...")
     print(search_atb("хліб"))
