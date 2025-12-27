@@ -89,6 +89,7 @@ async def main():
     init_db()
     setup_logging(LOG_FILE)
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+
     dp = Dispatcher()
 
     dp.include_router(common.router)

@@ -46,6 +46,11 @@ def get_main_menu(user_id: int) -> ReplyKeyboardMarkup:
             KeyboardButton(text="❌ Еrror log")
 
         )
+        # 6 ряд: Додати подію
+        builder.row(
+            KeyboardButton(text="➕ Додати подію"),
+            #KeyboardButton(text="🗑 Видалити подію")
+        )
 
     # --- АДМІНИ (ті, хто не власник, але є в списку) ---
     elif user_id in ADMIN_IDS:
@@ -57,9 +62,14 @@ def get_main_menu(user_id: int) -> ReplyKeyboardMarkup:
         )
         # 2 ряд: Рестарти (безпечні)
         builder.row(
+            KeyboardButton(text="📢 Знайти телефон"),
             KeyboardButton(text="🔄 AllSaver"),
             KeyboardButton(text="🔄 Кіт")
         )
+        # 3 ряд: Додати подію
+        builder.row(
+            KeyboardButton(text="➕ Додати подію"),
+            #KeyboardButton(text="🗑 Видалити подію")
+        )
 
-    # Якщо юзера немає ніде — повернеться пуста клавіатура (або None, якщо перевірка в хендлері)
     return builder.as_markup(resize_keyboard=True, one_time_keyboard=False)

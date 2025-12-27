@@ -9,32 +9,25 @@ from config import OWNER_ID
 
 JSON_FILE = "calendar.json"
 
-# --- РОБОТА З ФАЙЛОМ (Base64) ---
 
 def load_full_db():
     if not os.path.exists(JSON_FILE):
         return {}
     try:
-        # Читаємо файл у бінарному режимі
         with open(JSON_FILE, "rb") as f:
             content = f.read()
 
-        # Спроба 1: Пробуємо розкодувати Base64
         try:
-            # Декодуємо Base64 -> отримуємо JSON рядок -> перетворюємо в словник
             json_str = base64.b64decode(content).decode('utf-8')
             data = json.loads(json_str)
         except Exception:
-            # Спроба 2: Якщо впала помилка, значить файл ще "чистий" (не зашифрований)
             print("⚠️ Календар не зашифрований. Мігрую в Base64...")
             try:
                 data = json.loads(content.decode('utf-8'))
-                # Одразу зберігаємо його назад вже зашифрованим
                 save_full_db(data)
             except:
                 return {}
 
-        # АВТО-МІГРАЦІЯ структури (список -> словник)
         if isinstance(data, list):
             new_db = {str(OWNER_ID): data}
             save_full_db(new_db)

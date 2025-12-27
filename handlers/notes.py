@@ -18,12 +18,10 @@ async def add_note(message: Message):
     if user_id == OWNER_ID:
         is_allowed = True
     else:
-        # Перевірка на Власника групи (Creator)
         member = await message.chat.get_member(user_id)
         if member.status == "creator":
             is_allowed = True
         else:
-            # Довірені адміни з БД
             conn = get_connection()
             cursor = conn.cursor()
             cursor.execute('SELECT is_admin FROM users WHERE user_id = ?', (user_id,))

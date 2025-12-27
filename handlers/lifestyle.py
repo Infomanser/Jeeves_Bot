@@ -84,7 +84,6 @@ async def cmd_news(message: types.Message):
     await sent_msg.edit_text(text, disable_web_page_preview=True)
 
 # --- 1. ПЕРЕГЛЯД КАЛЕНДАРЯ ---
-
 @router.message(Command("events"))
 @router.message(F.text == "📅 Календар")
 async def cmd_events(message: types.Message):
@@ -225,6 +224,7 @@ async def finish_edit(message: types.Message, state: FSMContext):
 
 # --- 4. ДОДАВАННЯ ТА ВИДАЛЕННЯ ---
 @router.message(Command("add"))
+@router.message(F.text == "➕ Додати подію")
 async def start_add_event(message: types.Message, state: FSMContext):
     if not is_authorized(message.from_user.id): return
     await message.answer("📅 <b>Крок 1/3:</b> Введіть дату (наприклад, <code>14.02</code>):")

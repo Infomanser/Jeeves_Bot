@@ -107,7 +107,7 @@ def get_full_system_report() -> str:
         
     header = f"🕰 <b>System ({current_time}):</b>\n⏱️ В мережі: {uptime_ua}"
 
-    # --- 🔋 BATTERY LOGIC (FIXED) ---
+    # --- 🔋 BATTERY LOGIC ---
     try:
         # 1. Отримуємо дані
         result = subprocess.run(["termux-battery-status"], capture_output=True, text=True, timeout=3)
@@ -129,7 +129,7 @@ def get_full_system_report() -> str:
             st_ua = "повний"
             icon = "🔋"
         else:
-            st_ua = "не заряджається" # Status: NOT CHARGING
+            st_ua = "не заряджається"
             icon = "🔋"
 
         battery_info = f"🔋 Акум: {icon} {p}% ({st_ua}, {temp}°C)"
