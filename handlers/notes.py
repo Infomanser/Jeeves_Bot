@@ -47,7 +47,7 @@ def check_permissions(user_id, chat_id, member_status):
 # --- 1. ДОДАВАННЯ НОТАТКИ (ТЕКСТ, ГОЛОС, ФОТО) ---
 
 @router.message(Command("note"))
-@router.message(Command("✍️ Додати нотатку"))
+@router.message(f.text == "✍️ Додати нотатку")
 @router.message(F.text.lower().in_({"нотатка", "записати", "запиши", "замітка", "запам'ятай"}))
 async def start_note(message: Message, state: FSMContext):
     user_id = message.from_user.id
