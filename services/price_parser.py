@@ -1,14 +1,15 @@
+# services/price_parser.py
 import cloudscraper
 from bs4 import BeautifulSoup
 import re
 
 def search_atb(query: str):
     """
-    Шукає товар в АТБ (Location ID: 1158).
+    Шукає товар в АТБ (Location ID: 1158 - Чернігів).
     Використовує cloudscraper та Regex для чистого виводу.
     """
     
-    # 1. Створюємо імітацію браузера Chrome
+    # 1. Створюємо імітацію браузера Chrome (щоб не отримати 403)
     scraper = cloudscraper.create_scraper(
         browser={
             'browser': 'chrome',
@@ -21,7 +22,7 @@ def search_atb(query: str):
     base_url = "https://www.atbmarket.com/sch"
     params = {
         'lang': 'uk',
-        'location': '1158', 
+        'location': '1158',  # Твій магазин
         'query': query
     }
     
@@ -56,11 +57,12 @@ def search_atb(query: str):
                 price_bottom = item.select_one('.product-price__bottom') 
 
                 if price_top and price_bottom:
-                    # Видаляємо все, крім цифр (щоб прибрати 'грн/шт' і т.д.)
+                    # Видаляємо все, крім цифр
                     p_m = re.sub(r'[^\d]', '', price_top.get_text())
                     p_c = re.sub(r'[^\d]', '', price_bottom.get_text())
                     price_final = f"{p_m}.{p_c} грн"
                 
+                # Якщо ціна одним блоком
                 elif item.select_one('.product-price__value'):
                     raw_text = item.select_one('.product-price__value').get_text(strip=True)
                     match = re.search(r'\d+[.,]\d+', raw_text)
@@ -73,7 +75,7 @@ def search_atb(query: str):
                 
                 # --- ФІЛЬТР "НЕМАЄ В НАЯВНОСТІ" ---
                 if price_final == "???":
-                    # continue 
+                    # Можна поставити marker = "⛔️", або просто написати текстом
                     price_final = "Немає в наявності"
                     marker = "⛔️"
 
@@ -86,3 +88,9 @@ def search_atb(query: str):
 
     except Exception as e:
         return f"❌ Помилка парсингу: {e}"
+
+# ТЕСТ ЗАПУСК (Тільки якщо запускаєш файл напряму)
+if __name__ == "__main__":
+    test_query = "цукор"
+    print(f"🔎 Шукаємо '{test_query}' в магазині 1158...")
+    print(search_atb(test_query))
