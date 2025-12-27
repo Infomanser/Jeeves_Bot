@@ -11,4 +11,4 @@ logs/
 settings.json
 calendar.json
 ROAD_MAP.md
-
+update_db.py
