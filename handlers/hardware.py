@@ -31,14 +31,11 @@ async def cmd_status(message: types.Message):
         report = report[:4090] + "..."
     await message.answer(report)
 
-# (Функцію пам'яті видалено, бо вона тепер частина статусу)
-
 # --- 2. ЛІХТАР (Тільки Власник) ---
 
 @router.message(F.text == "🔦 Увімк")
 async def cmd_light_on(message: types.Message):
     if not is_owner(message.from_user.id): return
-    # ВИПРАВЛЕНО: назва функції в сервісі 'torch', а не 'torch_control'
     hardware.torch('on')
     await message.answer("🔦 Ліхтар увімкнено.")
 
@@ -55,7 +52,6 @@ async def btn_find_phone(message: types.Message):
     if not is_owner(message.from_user.id): return
     
     await message.answer("📣 <b>УВАГА!</b> Вмикаю сирену!")
-    # Використовуємо наш враппер, щоб не блокувати бота (там Popen)
     hardware.tts_speak("Увага! Я тут! Зверни на мене увагу! " * 5)
 
 @router.message(Command("say"))
@@ -98,7 +94,6 @@ async def handle_restarts(message: types.Message):
     if service_name == "Jeeves":
         await message.answer("♻️ Йду на перезавантаження. Побачимось за мить! 👋")
     
-    # ВИПРАВЛЕНО: Прямий виклик PM2 тут, бо в сервісі цієї функції немає
     try:
         subprocess.run(["pm2", "restart", service_name], check=True)
         if service_name != "Jeeves":

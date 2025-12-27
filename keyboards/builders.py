@@ -9,36 +9,43 @@ def get_main_menu(user_id: int) -> ReplyKeyboardMarkup:
     """
     builder = ReplyKeyboardBuilder()
 
-    # --- ЛОГІКА ДЛЯ ВЛАСНИКА (OWNER_ID) ---
+    # --- ВЛАСНИК ---
     if user_id == OWNER_ID:
-        # 1 ряд: Статус, Календар, Новини
+        # 1 ряд: Статус, Ліхтар
         builder.row(
             KeyboardButton(text="📲 Статус"),
-            KeyboardButton(text="📅 Календар"),
-            KeyboardButton(text="📰 Новини")
-        )
-        # 2 ряд: "Знайти телефон", Ліхтар увімк/вимк
-        builder.row(
-            KeyboardButton(text="📢 Знайти телефон"),
             KeyboardButton(text="🔦 Увімк"),
             KeyboardButton(text="🌑 Вимк")
         )
-        # 3 ряд: Рестарти (Кіт, SSH, Тунель)
+        # 2 ряд: Календар, Погода, Новини
+        builder.row(
+            KeyboardButton(text="📄 Погода"),
+            KeyboardButton(text="📅 Календар"),
+            KeyboardButton(text="📰 Новини")
+        )
+        # 3 ряд: Рестарти системні
         builder.row(
             KeyboardButton(text="🔄 Кіт"),
             KeyboardButton(text="🔄 SSH"),
             KeyboardButton(text="🔄 Тунель")
         )
-        # 4 ряд: Рестарти (Музика, Дживс, Пам'ять)
+        # 4 ряд: Рестарти ботів + Пам'ять
         builder.row(
             KeyboardButton(text="🔄 AllSaver"),
             KeyboardButton(text="🔄 Дживс"),
             KeyboardButton(text="💾 Пам'ять")
         )
-        # 5 ряд: Логи, Помилки
+        # 5 ряд: Логи, Знайти телефон
         builder.row(
+            KeyboardButton(text="📢 Знайти телефон"),
             KeyboardButton(text="📄 Логи"),
             KeyboardButton(text="❌ Еrror log")
+
+        )
+        # 6 ряд: Додати подію
+        builder.row(
+            KeyboardButton(text="➕ Додати подію"),
+            #KeyboardButton(text="🗑 Видалити подію")
         )
 
     # --- ЛОГІКА ДЛЯ АДМІНІВ (ADMIN_IDS) ---
@@ -49,12 +56,17 @@ def get_main_menu(user_id: int) -> ReplyKeyboardMarkup:
             KeyboardButton(text="🌦 Погода"),
             KeyboardButton(text="📰 Новини")
         )
-        # 2 ряд: Рестарти (Безпечні) + Знайти телефон (через команду, або кнопкою)
+        # 2 ряд: Рестарти (безпечні)
         builder.row(
+            KeyboardButton(text="📢 Знайти телефон"),
             KeyboardButton(text="🔄 AllSaver"),
             KeyboardButton(text="🔄 Кіт")
         )
-
+        # 3 ряд: Додати подію
+        builder.row(
+            KeyboardButton(text="➕ Додати подію"),
+            #KeyboardButton(text="🗑 Видалити подію")
+        )
     # --- ВСІ ІНШІ ---
     else:
         # Повертаємо None або пусту клавіатуру, щоб їм нічого не показувало

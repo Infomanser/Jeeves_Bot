@@ -4,7 +4,10 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from config import OWNER_ID, ADMIN_IDS
 
+
 def get_main_menu(user_id: int) -> ReplyKeyboardMarkup:
+    print(f"DEBUG: Мій ID={user_id}, OWNER_ID={OWNER_ID}, Рівні? {user_id == OWNER_ID}") # <-- ДОДАЙ ЦЕ
+    builder = ReplyKeyboardBuilder()
     """
     Генерує меню на основі ID користувача.
     Власник отримує повний пульт керування (6 рядів).
