@@ -21,7 +21,7 @@ def get_main_menu(user_id: int) -> ReplyKeyboardMarkup:
         # 3 ряд: Пряма дія
         builder.row(KeyboardButton(text="➕ Додати подію"))
 
-    # --- АДМІНИ (Без папок, плаский список, бо їх мало) ---
+    # --- АДМІН (Головна сторінка) ---
     elif user_id in ADMIN_IDS:
         builder.row(
             KeyboardButton(text="📅 Календар"),
@@ -84,7 +84,7 @@ def get_info_menu() -> ReplyKeyboardMarkup:
     """Меню інформації"""
     builder = ReplyKeyboardBuilder()
     builder.row(
-        KeyboardButton(text="📄 Погода"),
+        KeyboardButton(text="🌦 Погода"),
         KeyboardButton(text="📅 Календар"),
         KeyboardButton(text="📰 Новини")
     )
