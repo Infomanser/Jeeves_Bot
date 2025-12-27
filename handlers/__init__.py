@@ -6,3 +6,4 @@ from . import lifestyle
 from . import owner
 from . import public
 from . import notes
+from . import navigation

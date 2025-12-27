@@ -4,72 +4,89 @@ from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from config import OWNER_ID, ADMIN_IDS
 
 def get_main_menu(user_id: int) -> ReplyKeyboardMarkup:
-    """
-    Генерує меню залежно від прав користувача.
-    """
     builder = ReplyKeyboardBuilder()
 
-    # --- ВЛАСНИК ---
+    # --- ВЛАСНИК (Головна сторінка) ---
     if user_id == OWNER_ID:
-        # 1 ряд: Статус, Ліхтар
+        # 1 ряд: Папки
         builder.row(
-            KeyboardButton(text="📲 Статус"),
-            KeyboardButton(text="🔦 Увімк"),
-            KeyboardButton(text="🌑 Вимк")
+            KeyboardButton(text="🔄 Керування"),
+            KeyboardButton(text="🛠 Інструменти")
         )
-        # 2 ряд: Календар, Погода, Новини
+        # 2 ряд: Папки + База
         builder.row(
-            KeyboardButton(text="📄 Погода"),
-            KeyboardButton(text="📅 Календар"),
-            KeyboardButton(text="📰 Новини")
+            KeyboardButton(text="📂 Інфо"),
+            KeyboardButton(text="📚 База знань")
         )
-        # 3 ряд: Рестарти системні
-        builder.row(
-            KeyboardButton(text="🔄 Кіт"),
-            KeyboardButton(text="🔄 SSH"),
-            KeyboardButton(text="🔄 Тунель")
-        )
-        # 4 ряд: Рестарти ботів + Пам'ять
-        builder.row(
-            KeyboardButton(text="🔄 AllSaver"),
-            KeyboardButton(text="🔄 Дживс"),
-            KeyboardButton(text="💾 Пам'ять")
-        )
-        # 5 ряд: Логи, Знайти телефон
-        builder.row(
-            KeyboardButton(text="📢 Знайти телефон"),
-            KeyboardButton(text="📄 Логи"),
-            KeyboardButton(text="❌ Еrror log")
+        # 3 ряд: Пряма дія
+        builder.row(KeyboardButton(text="➕ Додати подію"))
 
-        )
-        # 6 ряд: Додати подію
-        builder.row(
-            KeyboardButton(text="➕ Додати подію"),
-            #KeyboardButton(text="🗑 Видалити подію")
-        )
-
-    # --- ЛОГІКА ДЛЯ АДМІНІВ (ADMIN_IDS) ---
+    # --- АДМІНИ (Без папок, плаский список, бо їх мало) ---
     elif user_id in ADMIN_IDS:
-        # 1 ряд: Календар, Погода, Новини
         builder.row(
             KeyboardButton(text="📅 Календар"),
             KeyboardButton(text="🌦 Погода"),
             KeyboardButton(text="📰 Новини")
         )
-        # 2 ряд: Рестарти (безпечні)
         builder.row(
             KeyboardButton(text="📢 Знайти телефон"),
             KeyboardButton(text="🔄 AllSaver"),
             KeyboardButton(text="🔄 Кіт")
         )
-        # 3 ряд: Додати подію
         builder.row(
             KeyboardButton(text="➕ Додати подію"),
-            #KeyboardButton(text="🗑 Видалити подію")
+            KeyboardButton(text="📚 База знань")
         )
-    # --- ВСІ ІНШІ ---
+    
+    # Інші юзери
     else:
-        # Повертаємо None або пусту клавіатуру, щоб їм нічого не показувало
         return None
 
     return builder.as_markup(resize_keyboard=True, one_time_keyboard=False)
+
+# --- ПІДМЕНЮ ДЛЯ ВЛАСНИКА ---
+
+def get_restarts_menu() -> ReplyKeyboardMarkup:
+    """Меню рестартів"""
+    builder = ReplyKeyboardBuilder()
+    builder.row(
+        KeyboardButton(text="🔄 Кіт"),
+        KeyboardButton(text="🔄 SSH"),
+        KeyboardButton(text="🔄 Тунель")
+    )
+    builder.row(
+        KeyboardButton(text="🔄 AllSaver"),
+        KeyboardButton(text="🔄 Дживс")
+    )
+    builder.row(KeyboardButton(text="⬅️ Назад"))
+    return builder.as_markup(resize_keyboard=True)
+
+def get_tools_menu() -> ReplyKeyboardMarkup:
+    """Меню інструментів та логів"""
+    builder = ReplyKeyboardBuilder()
+    builder.row(
+        KeyboardButton(text="📲 Статус"),
+        KeyboardButton(text="💾 Пам'ять")
+    )
+    builder.row(
+        KeyboardButton(text="🔦 Увімк"),
+        KeyboardButton(text="🌑 Вимк"),
+        KeyboardButton(text="📢 Знайти телефон")
+    )
+    builder.row(
+        KeyboardButton(text="📄 Логи"),
+        KeyboardButton(text="❌ Еrror log")
+    )
+    builder.row(KeyboardButton(text="⬅️ Назад"))
+    return builder.as_markup(resize_keyboard=True)
+
+def get_info_menu() -> ReplyKeyboardMarkup:
+    """Меню інформації"""
+    builder = ReplyKeyboardBuilder()
+    builder.row(
+        KeyboardButton(text="📄 Погода"),
+        KeyboardButton(text="📅 Календар"),
+        KeyboardButton(text="📰 Новини")
+    )
+    builder.row(KeyboardButton(text="⬅️ Назад"))
+    return builder.as_markup(resize_keyboard=True)

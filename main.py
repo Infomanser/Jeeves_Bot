@@ -8,7 +8,7 @@ from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 
 from config import TOKEN, LOG_FILE, OWNER_ID
-from handlers import common, hardware, lifestyle, public, notes
+from handlers import common, hardware, lifestyle, public, notes, navigation
 from utils.logger import setup_logging
 
 # СЕРВІСИ ДЛЯ ЗВІТІВ
@@ -92,6 +92,7 @@ async def main():
 
     dp = Dispatcher()
 
+    dp.include_router(navigation.router)
     dp.include_router(common.router)
     dp.include_router(hardware.router)
     dp.include_router(lifestyle.router)

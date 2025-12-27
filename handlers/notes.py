@@ -258,16 +258,14 @@ async def trust_all_local_admins(message: Message):
     await message.reply(f"⚡️ {count} адмінів додано до білого списку <b>цього чату</b>.", parse_mode="HTML")
 
 
-# --- 6. ПЕРЕГЛЯД ТА ПОШУК (Тільки для своїх) ---
-# handlers/notes.py (частина файлу)
-
 # --- 6. ПЕРЕГЛЯД ТА ПОШУК ---
+
 @router.message(F.text == "/notes")
+@router.message(F.text == "📚 База знань")
 async def show_tags(message: Message):
     chat_id = message.chat.id
     conn = get_connection()
     cursor = conn.cursor()
-    # 1. Прибираємо умову 'AND tags != ""', беремо ВСЕ
     cursor.execute('SELECT tags FROM notes WHERE user_id = ?', (chat_id,))
     rows = cursor.fetchall()
     conn.close()
@@ -277,55 +275,54 @@ async def show_tags(message: Message):
         return
 
     all_tags = set()
-    has_untagged = False # Прапорець: чи є нотатки-сироти?
+    has_untagged = False 
 
     for row in rows:
         tags_raw = row['tags']
         if tags_raw:
-            # Якщо теги є, додаємо їх в набір
             for tag in tags_raw.split(','):
                 if tag: all_tags.add(tag.replace("#", ""))
         else:
-            # Якщо тегів немає, піднімаємо прапорець
             has_untagged = True
 
     buttons = []
     sorted_tags = sorted(list(all_tags))
     
-    # Формуємо кнопки тегів (по 2 в ряд)
+    # Кнопки тегів по 2 в ряд
     temp_row = []
     for tag in sorted_tags:
-        temp_row.append(InlineKeyboardButton(text=f"📂 {tag}", callback_data=f"note_tag:{tag}"))
+        temp_row.append(InlineKeyboardButton(text=f"📂 {tag}", callback_data=f"list_notes:{tag}"))
         if len(temp_row) == 2:
             buttons.append(temp_row)
             temp_row = []
     if temp_row:
         buttons.append(temp_row)
 
-    # 2. Якщо є нотатки без тегів - додаємо окрему кнопку в кінці
     if has_untagged:
-        buttons.append([InlineKeyboardButton(text="📥 Інше (без тегів)", callback_data="note_tag:__empty__")])
+        buttons.append([InlineKeyboardButton(text="📥 Інше (без тегів)", callback_data="list_notes:__empty__")])
+    
+    # Кнопка закриття меню
+    buttons.append([InlineKeyboardButton(text="❌ Закрити меню", callback_data="delete_msg")])
 
-    await message.answer("📚 <b>База знань чату.</b>", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons), parse_mode="HTML")
+    await message.answer("📚 <b>База знань чату.</b> Обери категорію:", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons), parse_mode="HTML")
 
 
-@router.callback_query(F.data.startswith("note_tag:"))
-async def show_notes_by_tag(callback: CallbackQuery):
+# 1. СПИСОК НОТАТОК У КАТЕГОРІЇ
+@router.callback_query(F.data.startswith("list_notes:"))
+async def show_notes_list(callback: CallbackQuery):
     tag_name = callback.data.split(":")[1]
     chat_id = callback.message.chat.id
     
     conn = get_connection()
     cursor = conn.cursor()
 
-    # 3. Обробка звичайних тегів vs "Без тегів"
     if tag_name == "__empty__":
-        # Шукаємо нотатки, де поле tags пусте
-        cursor.execute('SELECT content FROM notes WHERE user_id = ? AND tags = ""', (chat_id,))
-        header = "📥 <b>Нотатки без тегів:</b>"
+        # Тягнемо ID і початок тексту
+        cursor.execute('SELECT id, content FROM notes WHERE user_id = ? AND tags = ""', (chat_id,))
+        header = "📥 <b>Без тегів:</b>"
     else:
-        # Шукаємо за конкретним хештегом
-        cursor.execute('SELECT content FROM notes WHERE user_id = ? AND tags LIKE ?', (chat_id, f'%#{tag_name}%'))
-        header = f"<b>📖 #{tag_name}:</b>"
+        cursor.execute('SELECT id, content FROM notes WHERE user_id = ? AND tags LIKE ?', (chat_id, f'%#{tag_name}%'))
+        header = f"<b>📂 Категорія #{tag_name}:</b>"
 
     rows = cursor.fetchall()
     conn.close()
@@ -334,16 +331,90 @@ async def show_notes_by_tag(callback: CallbackQuery):
         await callback.answer("Пусто...", show_alert=True)
         return
 
-    res_text = f"{header}\n\n"
-    for i, row in enumerate(rows, 1):
-        content = row['content']
-        res_text += f"🔹 {content}\n\n"
+    buttons = []
+    for row in rows:
+        note_id = row['id']
+        # Обрізаємо текст для краси кнопки (перші 30 символів)
+        preview_text = row['content'][:30].replace("\n", " ") + "..."
+        buttons.append([InlineKeyboardButton(text=f"🔹 {preview_text}", callback_data=f"view_note:{note_id}:{tag_name}")])
 
-    kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="❌ Закрити", callback_data="delete_msg")]])
-    
-    try: await callback.message.edit_text(res_text, parse_mode="HTML", reply_markup=kb)
-    except: await callback.message.answer(res_text, parse_mode="HTML", reply_markup=kb)
+    # Кнопка "Назад до тегів"
+    buttons.append([InlineKeyboardButton(text="🔙 Назад до категорій", callback_data="back_to_tags")])
+
+    await callback.message.edit_text(
+        f"{header}\n⬇️ <i>Обери нотатку, щоб прочитати або видалити:</i>", 
+        parse_mode="HTML", 
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
+    )
     await callback.answer()
+
+
+# 2. ПЕРЕГЛЯД КОНКРЕТНОЇ НОТАТКИ (ДЕТАЛІ)
+@router.callback_query(F.data.startswith("view_note:"))
+async def view_single_note(callback: CallbackQuery):
+    _, note_id, tag_context = callback.data.split(":")
+    
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT content, tags FROM notes WHERE id = ?', (note_id,))
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        await callback.answer("Ця нотатка вже видалена.", show_alert=True)
+        # Оновлюємо список, бо нотатки нема
+        await show_notes_list(callback) 
+        return
+
+    full_text = row['content']
+    tags = row['tags'] or "без тегів"
+
+    # Кнопки дій
+    buttons = [
+        [InlineKeyboardButton(text="🗑 Видалити", callback_data=f"del_note:{note_id}:{tag_context}")],
+        [InlineKeyboardButton(text="🔙 Назад до списку", callback_data=f"list_notes:{tag_context}")]
+    ]
+
+    await callback.message.edit_text(
+        f"📝 <b>Нотатка:</b>\n\n{full_text}\n\n🏷 <i>{tags}</i>", 
+        parse_mode="HTML", 
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
+    )
+    await callback.answer()
+
+
+# 3. ВИДАЛЕННЯ НОТАТКИ
+@router.callback_query(F.data.startswith("del_note:"))
+async def delete_single_note(callback: CallbackQuery):
+    _, note_id, tag_context = callback.data.split(":")
+    user_id = callback.from_user.id
+    chat_id = callback.message.chat.id
+    member = await callback.message.chat.get_member(user_id)
+
+    # ПЕРЕВІРКА ПРАВ
+    if not check_permissions(user_id, chat_id, member.status):
+        await callback.answer("⛔️ Видаляти можуть тільки Адміни або Довірені!", show_alert=True)
+        return
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM notes WHERE id = ?', (note_id,))
+    conn.commit()
+    conn.close()
+
+    await callback.answer("✅ Нотатку видалено!", show_alert=True)
+    
+
+    callback.data = f"list_notes:{tag_context}"
+    await show_notes_list(callback)
+
+
+# 4. НАВІГАЦІЯ: НАЗАД ДО ТЕГІВ
+@router.callback_query(F.data == "back_to_tags")
+async def back_to_tags_handler(callback: CallbackQuery):
+    await show_tags(callback.message)
+    await callback.message.delete()
+
 
 @router.callback_query(F.data == "delete_msg")
 async def delete_msg_handler(callback: CallbackQuery):
