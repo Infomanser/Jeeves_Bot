@@ -124,7 +124,7 @@ async def handle_voice_note(message: Message, bot: Bot):
                 chat_completion = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=[
-                        {"role": "system", "content": "Ти секретар. Оформи цей текст як чітку нотатку українською. Виділи суть."},
+                        {"role": "system", "content": "Ти секретар. Оформи цей текст як чітку нотатку українською. Виділи суть. Коли робиш summary, придумай і додай 1-2 теги самостійно, якщо юзер не сказав"},
                         {"role": "user", "content": raw_text}
                     ]
                 )
@@ -216,7 +216,6 @@ async def untrust_user(message: Message):
 
     target_user = message.reply_to_message.from_user
     
-    # Захист від пострілу собі в ногу
     if target_user.id == OWNER_ID:
         await message.reply("👑 Рута не можна чіпати.")
         return
@@ -260,14 +259,16 @@ async def trust_all_local_admins(message: Message):
 
 
 # --- 6. ПЕРЕГЛЯД ТА ПОШУК (Тільки для своїх) ---
+# handlers/notes.py (частина файлу)
+
+# --- 6. ПЕРЕГЛЯД ТА ПОШУК ---
 @router.message(F.text == "/notes")
 async def show_tags(message: Message):
-
-    
     chat_id = message.chat.id
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute('SELECT tags FROM notes WHERE user_id = ? AND tags != ""', (chat_id,))
+    # 1. Прибираємо умову 'AND tags != ""', беремо ВСЕ
+    cursor.execute('SELECT tags FROM notes WHERE user_id = ?', (chat_id,))
     rows = cursor.fetchall()
     conn.close()
 
@@ -276,12 +277,22 @@ async def show_tags(message: Message):
         return
 
     all_tags = set()
+    has_untagged = False # Прапорець: чи є нотатки-сироти?
+
     for row in rows:
-        for tag in row['tags'].split(','):
-            if tag: all_tags.add(tag.replace("#", ""))
+        tags_raw = row['tags']
+        if tags_raw:
+            # Якщо теги є, додаємо їх в набір
+            for tag in tags_raw.split(','):
+                if tag: all_tags.add(tag.replace("#", ""))
+        else:
+            # Якщо тегів немає, піднімаємо прапорець
+            has_untagged = True
 
     buttons = []
     sorted_tags = sorted(list(all_tags))
+    
+    # Формуємо кнопки тегів (по 2 в ряд)
     temp_row = []
     for tag in sorted_tags:
         temp_row.append(InlineKeyboardButton(text=f"📂 {tag}", callback_data=f"note_tag:{tag}"))
@@ -291,14 +302,31 @@ async def show_tags(message: Message):
     if temp_row:
         buttons.append(temp_row)
 
+    # 2. Якщо є нотатки без тегів - додаємо окрему кнопку в кінці
+    if has_untagged:
+        buttons.append([InlineKeyboardButton(text="📥 Інше (без тегів)", callback_data="note_tag:__empty__")])
+
     await message.answer("📚 <b>База знань чату.</b>", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons), parse_mode="HTML")
+
 
 @router.callback_query(F.data.startswith("note_tag:"))
 async def show_notes_by_tag(callback: CallbackQuery):
     tag_name = callback.data.split(":")[1]
+    chat_id = callback.message.chat.id
+    
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute('SELECT content FROM notes WHERE user_id = ? AND tags LIKE ?', (callback.message.chat.id, f'%#{tag_name}%'))
+
+    # 3. Обробка звичайних тегів vs "Без тегів"
+    if tag_name == "__empty__":
+        # Шукаємо нотатки, де поле tags пусте
+        cursor.execute('SELECT content FROM notes WHERE user_id = ? AND tags = ""', (chat_id,))
+        header = "📥 <b>Нотатки без тегів:</b>"
+    else:
+        # Шукаємо за конкретним хештегом
+        cursor.execute('SELECT content FROM notes WHERE user_id = ? AND tags LIKE ?', (chat_id, f'%#{tag_name}%'))
+        header = f"<b>📖 #{tag_name}:</b>"
+
     rows = cursor.fetchall()
     conn.close()
 
@@ -306,9 +334,8 @@ async def show_notes_by_tag(callback: CallbackQuery):
         await callback.answer("Пусто...", show_alert=True)
         return
 
-    res_text = f"<b>📖 #{tag_name}:</b>\n\n"
+    res_text = f"{header}\n\n"
     for i, row in enumerate(rows, 1):
-        # Трохи магії, щоб прибрати теги з відображення для краси
         content = row['content']
         res_text += f"🔹 {content}\n\n"
 
