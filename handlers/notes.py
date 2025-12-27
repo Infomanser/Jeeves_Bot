@@ -45,7 +45,6 @@ def check_permissions(user_id, chat_id, member_status):
     return False
 
 # --- 1. ДОДАВАННЯ НОТАТКИ (ТЕКСТ, ГОЛОС, ФОТО) ---
-
 @router.message(Command("note"))
 @router.message(F.text == "✍️ Додати нотатку")
 @router.message(F.text.lower().in_({"нотатка", "записати", "запиши", "замітка", "запам'ятай"}))
@@ -58,7 +57,14 @@ async def start_note(message: Message, state: FSMContext):
         await message.answer("⛔️ У цьому чаті я нотатки не приймаю.")
         return
 
-    # Якщо команда введена з текстом: /note купити хліба #дім
+    trigger_phrases = ["✍️ Додати нотатку", "нотатка", "записати", "запиши", "замітка", "запам'ятай"]
+    
+    # Перевіряємо: якщо це просто кнопка або слово-тригер -> питаємо "Що записати?"
+    if message.text.lower() in [t.lower() for t in trigger_phrases]:
+        await message.answer("✍️ Що записати? (Надішли текст, голосове або <b>фото</b>)")
+        await state.set_state(NoteStates.waiting_for_content)
+        return
+
     args = message.text.split(maxsplit=1)
     if len(args) > 1:
         content = args[1]
@@ -67,9 +73,9 @@ async def start_note(message: Message, state: FSMContext):
         await message.answer(f"✅ Записав: <b>{content[:50]}...</b>", parse_mode="HTML")
         return
 
+    # Фолбек (про всяк випадок)
     await message.answer("✍️ Що записати? (Надішли текст, голосове або <b>фото</b>)")
     await state.set_state(NoteStates.waiting_for_content)
-
 @router.message(NoteStates.waiting_for_content)
 async def process_content(message: Message, state: FSMContext):
     content_text = ""
