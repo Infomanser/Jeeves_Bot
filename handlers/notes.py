@@ -330,8 +330,8 @@ async def view_single_note(callback: CallbackQuery):
 
     if not row:
         await callback.answer("Нотатка видалена.", show_alert=True)
-        callback.data = f"list_notes:{tag_context}"
-        await show_notes_list(callback)
+        new_callback = callback.model_copy(update={"data": f"list_notes:{tag_context}"})
+        await show_notes_list(new_callback)
         return
 
     full_text = row['content'] or "Без опису"
