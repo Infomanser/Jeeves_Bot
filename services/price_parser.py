@@ -3,6 +3,7 @@ import cloudscraper
 from bs4 import BeautifulSoup
 import re
 import time
+import asyncio
 
 def search_atb(query: str):
     """
