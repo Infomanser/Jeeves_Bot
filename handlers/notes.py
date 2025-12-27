@@ -10,6 +10,7 @@ from config import OWNER_ID, ADMIN_IDS
 from services.db_manager import get_connection
 from services import termux_api
 
+# Спробуємо підключити Groq, якщо немає - фолбек
 try:
     from groq import Groq
     from config import GROQ_API_KEY
@@ -214,7 +215,7 @@ def save_note_to_db(user_id, content, tags, file_id=None, media_type=None):
     conn.close()
 
 
-# --- 6. ПЕРЕГЛЯД ТА ПОШУК (ОНОВЛЕНО 3.0: З КАРТИНКАМИ) ---
+# --- 6. ПЕРЕГЛЯД ТА ПОШУК ---
 
 @router.message(F.text == "/notes")
 async def show_tags(message: Message):
@@ -235,12 +236,14 @@ async def show_tags(message: Message):
     for row in rows:
         tags_raw = row['tags']
         if tags_raw:
-            for tag in tags_raw.split(','): 
-                
-                if " " in tags_raw and "," not in tags_raw:
-                     for t in tags_raw.split(): all_tags.add(t.replace("#", ""))
-                else:
-                    if tag: all_tags.add(tag.replace("#", "").strip())
+            # Обробка різних розділювачів (пробіл або кома)
+            if " " in tags_raw and "," not in tags_raw:
+                 for t in tags_raw.split(): 
+                     if t: all_tags.add(t.replace("#", ""))
+            else:
+                 for t in tags_raw.split(','):
+                    tag = t.strip()
+                    if tag: all_tags.add(tag.replace("#", ""))
         else:
             has_untagged = True
 
@@ -301,7 +304,6 @@ async def show_notes_list(callback: CallbackQuery):
 
     buttons.append([InlineKeyboardButton(text="🔙 Назад до категорій", callback_data="back_to_tags")])
 
-    # Якщо це було повідомлення з фото (минулий перегляд), видаляємо його і шлемо текст
     if callback.message.photo:
         await callback.message.delete()
         await callback.message.answer(
@@ -345,11 +347,9 @@ async def view_single_note(callback: CallbackQuery):
     ]
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
 
-    # ЛОГІКА ВІДОБРАЖЕННЯ
     caption_text = f"📝 <b>Нотатка:</b>\n\n{full_text}\n\n🏷 <i>{tags}</i>"
 
-
-    
+    # Видаляємо старе повідомлення (щоб уникнути мішанини фото/текст)
     await callback.message.delete()
 
     if media_type == 'photo' and file_id:
@@ -379,9 +379,8 @@ async def delete_single_note(callback: CallbackQuery):
 
     await callback.answer("✅ Видалено!", show_alert=True)
     
-    # Повернення до списку
-    callback.data = f"list_notes:{tag_context}"
-    await show_notes_list(callback) 
+    new_callback = callback.model_copy(update={"data": f"list_notes:{tag_context}"})
+    await show_notes_list(new_callback)
 
 @router.callback_query(F.data == "back_to_tags")
 async def back_to_tags_handler(callback: CallbackQuery):
