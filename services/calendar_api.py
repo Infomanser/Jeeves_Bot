@@ -41,12 +41,9 @@ def load_full_db():
 
 def save_full_db(db_data):
     try:
-        # 1. Перетворюємо словник у JSON-рядок
         json_str = json.dumps(db_data, ensure_ascii=False)
-        # 2. Кодуємо цей рядок у Base64
         encrypted_bytes = base64.b64encode(json_str.encode('utf-8'))
         
-        # 3. Записуємо набір байтів у файл
         with open(JSON_FILE, "wb") as f:
             f.write(encrypted_bytes)
     except Exception as e:

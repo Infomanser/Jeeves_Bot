@@ -5,3 +5,4 @@ from . import termux_api
 from . import weather_api
 from . import db_manager
 from . import price_parser
+from . import fitness

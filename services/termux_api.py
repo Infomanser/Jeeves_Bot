@@ -105,7 +105,7 @@ def get_full_system_report() -> str:
     except:
         uptime_ua = "Невідомо"
         
-    header = f"🕰 <b>System ({current_time}):</b>\n⏱️ В мережі: {uptime_ua}"
+    header = f"🕰 <b>Система ({current_time}):</b>\n⏱️ В мережі: {uptime_ua}"
 
     # --- 🔋 BATTERY LOGIC ---
     try:
