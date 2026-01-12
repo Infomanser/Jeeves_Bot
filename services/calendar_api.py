@@ -12,7 +12,7 @@ def get_user_events(user_id: int):
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT id, date, text, link FROM calendar WHERE user_id = ?", 
+                "SELECT id, event_date, event_text, link FROM calendar WHERE user_id = ?", 
                 (user_id,)
             )
             rows = cursor.fetchall()
@@ -40,7 +40,7 @@ def add_new_event(user_id: int, date: str, name: str, raw_link: str = "-"):
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT INTO calendar (user_id, date, text, link) VALUES (?, ?, ?, ?)",
+                "INSERT INTO calendar (user_id, event_date, event_text, link) VALUES (?, ?, ?, ?)",
                 (user_id, date, name, link)
             )
             conn.commit()
@@ -50,7 +50,7 @@ def add_new_event(user_id: int, date: str, name: str, raw_link: str = "-"):
         return None
 
 def delete_event(user_id: int, query: str) -> str:
-    """Видаляє події з SQLite за датою або текстом."""
+    """Видаляє події."""
     query = query.lower().strip()
     deleted_events = []
     
@@ -84,7 +84,7 @@ def update_event_text(user_id: int, evt_id: int, new_text: str):
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "UPDATE calendar SET text = ? WHERE id = ? AND user_id = ?",
+                "UPDATE calendar SET event_text = ? WHERE id = ? AND user_id = ?",
                 (new_text, evt_id, user_id)
             )
             conn.commit()
@@ -106,7 +106,7 @@ def mass_import_events(user_id: int, text_block: str):
                 if len(parts) < 2 or "." not in parts[0]: continue
                 
                 cursor.execute(
-                    "INSERT INTO calendar (user_id, date, text, link) VALUES (?, ?, ?, ?)",
+                    "INSERT INTO calendar (user_id, event_date, event_text, link) VALUES (?, ?, ?, ?)",
                     (user_id, parts[0], parts[1], None)
                 )
                 count += 1
@@ -171,7 +171,7 @@ def get_event_by_id(user_id: int, evt_id: int):
     try:
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT id, date, text, link FROM calendar WHERE id = ? AND user_id = ?", (evt_id, user_id))
+            cursor.execute("SELECT id, event_date, event_text, link FROM calendar WHERE id = ? AND user_id = ?", (evt_id, user_id))
             row = cursor.fetchone()
             if row:
                 return {"id": row[0], "date": row[1], "text": row[2], "link": row[3]}
