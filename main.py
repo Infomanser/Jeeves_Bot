@@ -114,7 +114,7 @@ async def main():
     asyncio.create_task(morning_briefing(bot))
 
     # Планувальник (для води)
-    scheduler = AsyncIOScheduler(timezone="Europe/Kyiv")
+    #scheduler = AsyncIOScheduler(timezone="Europe/Kyiv")
     # 12:00, 16:00, 20:00, 00:00
     scheduler.add_job(send_water_alert, 'cron', hour='12,16,20,0', args=[bot])
     scheduler.start()
