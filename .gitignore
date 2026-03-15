@@ -5,6 +5,7 @@ backups/*.db
 venv/
 __pycache__/
 logs/
+services/fitness/
 .idea/
 .vscode/
 *.log

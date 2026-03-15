@@ -39,7 +39,6 @@ class AddEvent(StatesGroup):
 class WeatherStates(StatesGroup):
     waiting_for_city = State()
 
-# 👇 Додали стан для цін
 class PriceStates(StatesGroup):
     waiting_for_query = State()
 
