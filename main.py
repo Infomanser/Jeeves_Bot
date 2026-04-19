@@ -49,8 +49,8 @@ async def morning_briefing(bot: Bot):
                 if events_text:
                     parts.append(f"📅 <b>Нагадування:</b>\n{events_text}")
                 
-                # 2. ПОГОДА (З передачею ID для фіксу помилки)
-                weather_text = await get_weather_forecast(user_id=OWNER_ID)
+                # 2. ПОГОДА
+                weather_text = await get_weather_forecast()
                 if weather_text:
                     parts.append(f"{weather_text}")
 

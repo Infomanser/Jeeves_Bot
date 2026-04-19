@@ -1,12 +1,11 @@
 # services/weather_api.py
 import aiohttp
 import sqlite3
-from datetime import datetime
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict
 
-# Файл для збереження налаштувань
 BASE_DIR = Path(__file__).resolve().parent.parent
 SETTINGS_FILE = BASE_DIR / "settings.json"
 
@@ -30,7 +29,7 @@ def _load_settings() -> Dict:
 
 def _save_settings(new_config: Dict):
     current = _load_settings()
-    current.update(new_config) # Оновлюємо лише те, що змінилось
+    current.update(new_config)
     with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
         json.dump(current, f, indent=4, ensure_ascii=False)
 
@@ -55,7 +54,6 @@ async def search_city(query: str) -> Optional[Dict]:
                 if resp.status == 200:
                     data = await resp.json()
                     if "results" in data and data["results"]:
-                        # Повертаємо перший знайдений результат
                         city = data["results"][0]
                         return {
                             "name": city.get("name"),
@@ -79,8 +77,7 @@ WMO_CODES = {
     95: "⛈ Гроза", 96: "⛈ Гроза з градом", 99: "⛈ Сильна гроза з градом"
 }
 
-async def get_weather_forecast() -> str:
-    # 1. Читаємо налаштування з файлу
+async def get_weather_forecast(*args, **kwargs) -> str:
     settings = _load_settings().get("weather", DEFAULT_CONFIG["weather"])
     lat, lon, city_name = settings["lat"], settings["lon"], settings["name"]
 
@@ -91,19 +88,26 @@ async def get_weather_forecast() -> str:
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url, timeout=10) as resp:
-                if resp.status != 200: return "❌ Сервіс погоди тимчасово недоступний."
+                if resp.status != 200: 
+                    logging.error(f"Weather API error: {resp.status}")
+                    return "❌ Сервіс погоди тимчасово недоступний."
                 data = await resp.json()
                 
         cur = data.get('current', {})
+        if not cur:
+            return "❌ Не вдалося отримати поточні дані погоди."
+
         code = cur.get('weather_code', 0)
         desc = WMO_CODES.get(code, f"Невідомо ({code})")
+        
+        logging.info(f"Weather updated for {city_name}: {cur.get('temperature_2m')}°C")
 
         return (
             f"🌤 <b>Погода ({city_name}):</b>\n"
-            f"🌡 <b>Температура:</b> {cur.get('temperature_2m')}°C (відчувається {cur.get('apparent_temperature')}°C)\n"
+            f"🌡 <b>Температура:</b> {cur.get('temperature_2m', '??')}°C (відчувається {cur.get('apparent_temperature', '??')}°C)\n"
             f"☁️ <b>Небо:</b> {desc}\n"
-            f"💨 <b>Вітер:</b> {cur.get('wind_speed_10m')} км/год\n"
-            f"💧 <b>Вологість:</b> {cur.get('relative_humidity_2m')}%"
+            f"💨 <b>Вітер:</b> {cur.get('wind_speed_10m', '??')} км/год\n"
+            f"💧 <b>Вологість:</b> {cur.get('relative_humidity_2m', '??')}%"
         )
     except Exception as e:
         return f"❌ Помилка: {e}"
