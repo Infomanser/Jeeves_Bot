@@ -108,6 +108,7 @@ async def main():
     dp.include_router(lifestyle.router)
     dp.include_router(notes.router)
     dp.include_router(public.router)
+    dp.include_router(handlers.owner.router)
 
     asyncio.create_task(scheduled_reporter(bot))
     asyncio.create_task(morning_briefing(bot))
