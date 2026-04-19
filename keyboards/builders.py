@@ -91,9 +91,10 @@ def get_info_menu() -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
     builder.row(
         KeyboardButton(text="🌦 Погода"),
+        KeyboardButton(text="🌦 Погода на тиждень"),
         KeyboardButton(text="📅 Календар"),
         KeyboardButton(text="📰 Новини"),
-        KeyboardButton(text="🛒 Перевірка цін в АТБ")
+        # KeyboardButton(text="🛒 Перевірка цін в АТБ")
     )
     builder.row(KeyboardButton(text="⬅️ Назад"))
     return builder.as_markup(resize_keyboard=True)

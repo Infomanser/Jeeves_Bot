@@ -17,6 +17,7 @@ async def cmd_cancel(message: types.Message, state: FSMContext):
     await message.answer("👌 Скасовано.")
 
 @router.message(Command("weekly"))
+@router.message(F.text.in_({"🌦 Погода на тиждень", "Погода на тиждень"}))
 async def cmd_weekly_public(message: types.Message):
     status_msg = await message.answer("📅 Отримую прогноз на тиждень...")
     try:
