@@ -45,6 +45,10 @@ async def morning_briefing(bot: Bot):
             try:
                 parts = []
                 
+                if now.weekday() == 6:
+                    weekly_weather = await get_weekly_forecast()
+
+                    await bot.send_message(OWNER_ID, weekly_weather)
                 # 1. КАЛЕНДАР
                 events_text = check_upcoming_events(OWNER_ID)
                 if events_text:

@@ -112,3 +112,37 @@ async def get_weather_forecast(*args, **kwargs) -> str:
         )
     except Exception as e:
         return f"❌ Помилка: {e}"
+
+async def get_weekly_forecast() -> str:
+    settings = _load_settings().get("weather", DEFAULT_CONFIG["weather"])
+    lat, lon = settings["lat"], settings["lon"]
+    
+    url = (f"https://api.open-meteo.com/v1/forecast?"
+           f"latitude={lat}&longitude={lon}&daily=weather_code,temperature_2m_max,temperature_2m_min"
+           f"&timezone=auto")
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            if resp.status != 200: return "❌ Прогноз на тиждень недоступний."
+            data = await resp.json()
+    
+    daily = data.get("daily", {})
+    days = daily.get("time", [])
+    codes = daily.get("weather_code", [])
+    t_max = daily.get("temperature_2m_max", [])
+    t_min = daily.get("temperature_2m_min", [])
+
+    res = ["🗓 <b>Прогноз на тиждень (Чернігів):</b>"]
+    
+    days_ua = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"]
+    
+    for i in range(len(days)):
+        dt = datetime.strptime(days[i], "%Y-%m-%d")
+        day_name = days_ua[dt.weekday()]
+        icon = WMO_CODES.get(codes[i], "❓").split()[0] # Беремо тільки емодзі
+        
+        line = f"<code>{day_name} {dt.strftime('%d.%m')}</code> {icon} <b>{t_min[i]}°..{t_max[i]}°</b>"
+        res.append(line)
+        
+    return "\n".join(res)
+    
