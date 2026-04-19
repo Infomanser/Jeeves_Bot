@@ -20,6 +20,8 @@ from services.news_api import get_fresh_news
 from services.db_manager import init_db, backup_database
 from services.fitness import get_hydration_reminder, get_today_workout 
 
+from handlers.owner import router as owner_router
+
 # --- СИСТЕМНИЙ РЕПОРТ ---
 async def scheduled_reporter(bot: Bot):
     target_hours = [0, 4, 8, 12, 16, 20]
