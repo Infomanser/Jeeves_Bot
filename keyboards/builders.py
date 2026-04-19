@@ -29,8 +29,8 @@ def get_main_menu(user_id: int) -> ReplyKeyboardMarkup:
         builder.row(
             KeyboardButton(text="📅 Календар"),
             KeyboardButton(text="🌦 Погода"),
+            KeyboardButton(text="🌦 Погода на тиждень"),
             KeyboardButton(text="📰 Новини"),
-            KeyboardButton(text="🛒 Перевірка цін в АТБ")
         )
         builder.row(
             KeyboardButton(text="📢 Знайти телефон"),

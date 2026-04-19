@@ -18,8 +18,15 @@ from services.calendar_api import (
     delete_event,
     check_upcoming_events
 )
-from keyboards.calendar_kb import get_events_filter_kb, get_edit_kb
-from services.weather_api import get_weather_forecast, search_city, set_city_coords
+from keyboards.calendar_kb import (
+    get_events_filter_kb,
+    get_edit_kb
+)
+from services.weather_api import (
+    get_weather_forecast,
+    search_city,
+    set_city_coords
+)
 from services.news_api import get_fresh_news
 # Імпорт парсера
 from services.price_parser import search_atb
