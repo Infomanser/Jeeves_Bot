@@ -31,7 +31,11 @@ async def cmd_briefing(message: types.Message, bot: Bot):
     
     try:
         parts = []
-    
+
+        if now.weekday() == 6:
+            weekly_weather = await get_weekly_forecast()
+            await bot.send_message(OWNER_ID, weekly_weather)
+
         events_text = check_upcoming_events(OWNER_ID)
         if events_text:
             parts.append(f"📅 <b>Нагадування:</b>\n{events_text}")
