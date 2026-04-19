@@ -20,8 +20,7 @@ from services.news_api import get_fresh_news
 from services.db_manager import init_db, backup_database
 from services.fitness import get_hydration_reminder, get_today_workout 
 
-from handlers.owner import router as owner_router
-
+from handlers import common, hardware, lifestyle, public, notes, navigation, owner
 # --- СИСТЕМНИЙ РЕПОРТ ---
 async def scheduled_reporter(bot: Bot):
     target_hours = [0, 4, 8, 12, 16, 20]
@@ -104,13 +103,13 @@ async def main():
         default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher()
 
+    dp.include_router(owner.router)
     dp.include_router(navigation.router)
     dp.include_router(common.router)
     dp.include_router(hardware.router)
     dp.include_router(lifestyle.router)
     dp.include_router(notes.router)
     dp.include_router(public.router)
-    dp.include_router(handlers.owner.router)
 
     asyncio.create_task(scheduled_reporter(bot))
     asyncio.create_task(morning_briefing(bot))
