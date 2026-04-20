@@ -3,24 +3,23 @@ import logging
 import os
 import sqlite3
 from datetime import datetime
+
 from aiogram import Bot, Dispatcher
-from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from config import TOKEN, LOG_FILE, OWNER_ID
-from handlers import common, hardware, lifestyle, public, notes, navigation
-from utils.logger import setup_logging
-
-# СЕРВІСИ
+from config import LOG_FILE, OWNER_ID, TOKEN
+from handlers import common, hardware, lifestyle, navigation, notes, owner, public
 from services import termux_api as hardware_service
 from services.calendar_api import check_upcoming_events
-from services.weather_api import get_weather_forecast
+from services.db_manager import backup_database, init_db
+from services.fitness import get_hydration_reminder, get_today_workout
 from services.news_api import get_fresh_news
-from services.db_manager import init_db, backup_database
-from services.fitness import get_hydration_reminder, get_today_workout 
+from services.weather_api import get_weather_forecast, get_weekly_forecast
+from utils.logger import setup_logging
 
-from handlers import common, hardware, lifestyle, public, notes, navigation, owner
+
 # --- СИСТЕМНИЙ РЕПОРТ ---
 async def scheduled_reporter(bot: Bot):
     target_hours = [0, 4, 8, 12, 16, 20]
@@ -46,16 +45,16 @@ async def morning_briefing(bot: Bot):
                 parts = []
                 
                 if now.weekday() == 6:
-                    weekly_weather = await get_weekly_forecast()
-
+                    weekly_weather = await get_weekly_forecast(OWNER_ID)
                     await bot.send_message(OWNER_ID, weekly_weather)
+                
                 # 1. КАЛЕНДАР
                 events_text = check_upcoming_events(OWNER_ID)
                 if events_text:
                     parts.append(f"📅 <b>Нагадування:</b>\n{events_text}")
                 
                 # 2. ПОГОДА
-                weather_text = await get_weather_forecast()
+                weather_text = await get_weather_forecast(OWNER_ID)
                 if weather_text:
                     parts.append(f"{weather_text}")
 
@@ -103,8 +102,9 @@ async def main():
     setup_logging(LOG_FILE)
     
     bot = Bot(
-        token=TOKEN,
-        default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+        token=TOKEN
+    )
     dp = Dispatcher()
 
     dp.include_router(owner.router)
@@ -122,8 +122,8 @@ async def main():
     scheduler.add_job(
         send_water_alert,
         'cron',
-        hour='12,13,14,15,16,17,18,19,20,21,22,23,0',
-        args=[bot]
+        args=[bot],
+        hour='12,13,14,15,16,17,18,19,20,21,22,23,0'
     )
     scheduler.start()
 

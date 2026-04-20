@@ -1,16 +1,17 @@
-# services/db_manager.py
-import sqlite3
+import glob
+import logging
 import os
 import shutil
-import glob
+import sqlite3
 from datetime import datetime
-import logging
+from pathlib import Path
 
-# Шлях до папки з даними
-DATA_DIR = "data"
-DB_NAME = "jeeves_database.db"
-DB_PATH = os.path.join(DATA_DIR, DB_NAME)
-BACKUP_DIR = "backups"
+# --- ШЛЯХИ ---
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATA_DIR = BASE_DIR / "data"
+DB_NAME = "jeeves.db"
+DB_PATH = DATA_DIR / DB_NAME
+BACKUP_DIR = BASE_DIR / "backups"
 MAX_BACKUPS = 7
 
 def get_connection():
@@ -21,22 +22,17 @@ def get_connection():
 
 def init_db():
     """Ініціалізація таблиць (викликається при старті бота)"""
-    
-    # Переконуємось, що папка data існує
     os.makedirs(DATA_DIR, exist_ok=True)
     
     conn = get_connection()
     cursor = conn.cursor()
 
-    # 1. Таблиця користувачів
+    # 1. Таблиця користувачів (без дублювання координат)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             user_id INTEGER PRIMARY KEY,
             username TEXT,
             language TEXT DEFAULT 'uk',
-            city_name TEXT,
-            lat REAL,
-            lon REAL,
             is_admin INTEGER DEFAULT 0
         )
     ''')
@@ -65,6 +61,16 @@ def init_db():
         )
     ''')
 
+    # 4. Weather settings 
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS user_weather (
+            user_id INTEGER PRIMARY KEY,
+            city_name TEXT,
+            lat REAL,
+            lon REAL
+        )
+    ''')
+
     conn.commit()
     conn.close()
     logging.info("✅ База даних перевірена/ініціалізована.")
@@ -72,24 +78,19 @@ def init_db():
 def backup_database():
     """Робить копію бази, видаляє найстаріші"""
     try:
-        # Перевіряємо, чи існує сама база
-        if not os.path.exists(DB_PATH):
+        if not DB_PATH.exists():
             logging.warning("⚠️ База даних ще не створена, бекап скасовано.")
             return False, "Database not found"
 
-        # Створюємо папку бекапів
-        if not os.path.exists(BACKUP_DIR):
-            os.makedirs(BACKUP_DIR)
+        os.makedirs(BACKUP_DIR, exist_ok=True)
 
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        backup_name = os.path.join(BACKUP_DIR, f"jeeves_backup_{timestamp}.db")
+        backup_name = BACKUP_DIR / f"jeeves_backup_{timestamp}.db"
 
-        # Копіюємо з папки data в backups
         shutil.copy2(DB_PATH, backup_name)
         logging.info(f"✅ Database backup created: {backup_name}")
 
-        # Ротація
-        list_of_backups = glob.glob(os.path.join(BACKUP_DIR, "*.db"))
+        list_of_backups = glob.glob(str(BACKUP_DIR / "*.db"))
         list_of_backups.sort(key=os.path.getmtime)
 
         while len(list_of_backups) > MAX_BACKUPS:
@@ -97,7 +98,7 @@ def backup_database():
             os.remove(oldest_file)
             logging.info(f"🗑 Rotated old backup: {oldest_file}")
             
-        return True, backup_name
+        return True, str(backup_name)
 
     except Exception as e:
         logging.error(f"❌ Backup failed: {e}")

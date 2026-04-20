@@ -57,6 +57,7 @@ def is_authorized(user_id: int) -> bool:
 # ==========================================
 
 @router.message(Command("set_city"))
+@router.message(F.text.in_({"🌦 Обрати місто", "Обрати місто"}))
 async def cmd_set_city(message: types.Message, state: FSMContext):
     if not is_authorized(message.from_user.id): return
     args = message.text.split(maxsplit=1)
@@ -65,6 +66,15 @@ async def cmd_set_city(message: types.Message, state: FSMContext):
     else:
         await message.answer("🏙 Введіть назву міста:")
         await state.set_state(WeatherStates.waiting_for_city)
+
+async def find_and_save_city(message: types.Message, city_name: str):
+    msg = await message.answer(f"🔎 Шукаю <b>{html.escape(city_name)}</b>...")
+    result = await search_city(city_name)
+    if result:
+        set_city_coords(message.from_user.id, result['name'], result['lat'], result['lon'])
+        await msg.edit_text(f"✅ Місто змінено на <b>{result['name']}</b>.")
+    else:
+        await msg.edit_text("❌ Місто не знайдено.")
 
 @router.message(Command("weather"))
 @router.message(F.text.in_({"🌦 Погода", "Погода"}))
@@ -119,7 +129,6 @@ async def process_filter(callback: types.CallbackQuery):
     await callback.message.delete()
     
     if filter_type == "all":
-        # Логіка для "Всі події" (список)
         months_names = [
             "Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень",
             "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"
@@ -143,7 +152,11 @@ async def process_filter(callback: types.CallbackQuery):
             if m_val != current_month:
                 month_header = f"\n📅 <b>--- {months_names[m_val-1].upper()} ---</b>\n"
                 if len(chunk) + len(month_header) > 3500:
-                    await callback.message.answer(chunk, disable_web_page_preview=True, parse_mode="HTML")
+                    await callback.message.answer(
+                        chunk, 
+                        disable_web_page_preview=True, 
+                        parse_mode="HTML"
+                    )
                     chunk = month_header
                 else:
                     chunk += month_header
@@ -151,16 +164,23 @@ async def process_filter(callback: types.CallbackQuery):
 
             line = f"• {day_label}, <b>{event['date']}</b>: {decode_event_to_string(event)}\n"
             if len(chunk) + len(line) > 3500:
-                await callback.message.answer(chunk, disable_web_page_preview=True, parse_mode="HTML")
+                await callback.message.answer(
+                    chunk, 
+                    disable_web_page_preview=True, 
+                    parse_mode="HTML"
+                )
                 chunk = line
             else:
                 chunk += line
         
         if chunk:
-            await callback.message.answer(chunk, disable_web_page_preview=True, parse_mode="HTML")
+            await callback.message.answer(
+                chunk, 
+                disable_web_page_preview=True, 
+                parse_mode="HTML"
+            )
             
     else:
-        # Логіка для карток (Сьогодні/Завтра...)
         for event in events:
             try:
                 d, m = map(int, event['date'].split('.'))
@@ -176,7 +196,12 @@ async def process_filter(callback: types.CallbackQuery):
             text_display = f"<b>{date_display}</b>: {decode_event_to_string(event)}"
             
             try:
-                await callback.message.answer(text_display, reply_markup=kb, disable_web_page_preview=True, parse_mode="HTML")
+                await callback.message.answer(
+                    text_display, 
+                    reply_markup=kb, 
+                    disable_web_page_preview=True, 
+                    parse_mode="HTML"
+                )
             except: pass
     await callback.message.answer("🔽 Меню:", reply_markup=get_events_filter_kb())
 
@@ -266,47 +291,14 @@ async def process_link(message: types.Message, state: FSMContext):
     try:
         saved_event = add_new_event(message.from_user.id, user_data['date'], user_data['name'], final_link)
         preview = decode_event_to_string(saved_event)
-        await message.answer(f"✅ <b>Збережено!</b>\n📅 {saved_event['date']}: {preview}", disable_web_page_preview=True, parse_mode="HTML")
+        await message.answer(
+            f"✅ <b>Збережено!</b>\n📅 {saved_event['date']}: {preview}", 
+            disable_web_page_preview=True, 
+            parse_mode="HTML"
+        )
     except Exception as e:
         await message.answer(f"❌ Помилка: {e}")
     await state.clear()
-
-# ==========================================
-#               🛒 ЦІНИ (АТБ) 
-# ==========================================
-
-async def perform_atb_search(message: types.Message, query: str):
-    wait_msg = await message.answer(f"🔎 Шукаю <b>{html.escape(query)}</b> в АТБ...", parse_mode="HTML")
-    try:
-        result = search_atb(query)
-        await wait_msg.edit_text(f"🏪 <b>АТБ (Твій магазин):</b>\n\n{result}", parse_mode="HTML")
-    except Exception as e:
-        await wait_msg.edit_text(f"❌ Сталася помилка: {e}")
-
-# 1. Ловимо команду або слова-тригери
-@router.message(Command("price"))
-@router.message(F.text == "🛒 Перевірка цін в АТБ")
-@router.message(F.text.lower().in_({"ціна", "прайс", "кеш", "почім", "atb", "атб"}))
-async def start_price_check(message: types.Message, state: FSMContext):
-    if not is_authorized(message.from_user.id): return
-
-    trigger_words = ["ціна", "прайс", "кеш", "почім", "atb", "атб", "🛒 перевірка цін в атб"]
-    
-    if message.text.lower() in trigger_words or message.text.strip() == "/price":
-         await message.answer("🛒 Що саме шукати? (Напиши назву товару):")
-         await state.set_state(PriceStates.waiting_for_query)
-         return
-
-    args = message.text.split(maxsplit=1)
-    if len(args) > 1:
-        await perform_atb_search(message, args[1])
-
-# 2. Ловимо відповідь користувача (назву товару)
-@router.message(PriceStates.waiting_for_query)
-async def process_price_query(message: types.Message, state: FSMContext):
-    await perform_atb_search(message, message.text)
-    await state.clear()
-
 
 # --- БРИФІНГ ---
 @router.message(Command("briefing"))
@@ -326,6 +318,10 @@ async def cmd_manual_briefing(message: types.Message):
 
     if parts:
         full_text = "\n\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n\n".join(parts)
-        await status_msg.edit_text(f"☕️ <b>Ранковий брифінг:</b>\n\n{full_text}", disable_web_page_preview=True, parse_mode="HTML")
+        await status_msg.edit_text(
+            f"☕️ <b>Ранковий брифінг:</b>\n\n{full_text}", 
+            disable_web_page_preview=True, 
+            parse_mode="HTML"
+        )
     else:
         await status_msg.edit_text("☕️ Доброго ранку! Новин та подій немає.")

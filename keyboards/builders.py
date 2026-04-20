@@ -6,95 +6,76 @@ from config import OWNER_ID, ADMIN_IDS
 def get_main_menu(user_id: int) -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
 
-    # --- ВЛАСНИК (Головна сторінка) ---
+    # --- 1. ВЛАСНИК ---
     if user_id == OWNER_ID:
-        # 1 ряд: Папки
-        builder.row(
-            KeyboardButton(text="🔄 Керування"),
-            KeyboardButton(text="🛠 Інструменти")
-        )
-        # 2 ряд: Папки + База
-        builder.row(
-            KeyboardButton(text="📂 Інфо"),
-            KeyboardButton(text="📚 База знань")
-        )
-        # 3 ряд: Пряма дія
-        builder.row(
-            KeyboardButton(text="➕ Додати подію"),
-            KeyboardButton(text="✍️ Додати нотатку")
-        )
+        builder.button(text="🔄 Керування")
+        builder.button(text="🛠 Інструменти")
+        builder.button(text="📂 Інфо")
+        builder.button(text="📚 База знань")
+        builder.button(text="➕ Додати подію")
+        builder.button(text="✍️ Додати нотатку")
+        builder.adjust(2, 2, 2)
+        return builder.as_markup(resize_keyboard=True)
 
-    # --- АДМІН (Головна сторінка) ---
-    elif user_id in ADMIN_IDS:
-        builder.row(
-            KeyboardButton(text="📅 Календар"),
-            KeyboardButton(text="🌦 Погода"),
-            KeyboardButton(text="🌦 Погода на тиждень"),
-            KeyboardButton(text="📰 Новини"),
-        )
-        builder.row(
-            KeyboardButton(text="📢 Знайти телефон"),
-            KeyboardButton(text="🔄 AllSaver"),
-            KeyboardButton(text="🔄 Кіт")
-        )
-        builder.row(
-            KeyboardButton(text="➕ Додати подію"),
-            KeyboardButton(text="✍️ Додати нотатку"),
-            KeyboardButton(text="📚 База знань")
-        )
-    
-    # Інші юзери
+    # --- 2. БАЗОВІ КНОПКИ (ДЛЯ АДМІНІВ ТА ЮЗЕРІВ) ---
+    builder.button(text="📅 Календар")
+    builder.button(text="📰 Новини")
+    builder.button(text="🌦 Обрати місто")
+    builder.button(text="🌦 Погода")
+    builder.button(text="🌦 Погода на тиждень")
+
+    # --- 3. ДОДАТКОВІ КНОПКИ ДЛЯ АДМІНІВ ---
+    if user_id in ADMIN_IDS:
+        builder.button(text="📢 Знайти телефон")
+        builder.button(text="🔄 AllSaver")
+        builder.button(text="🔄 Кіт")
+        # Сітка для адміна (базові + адмінські)
+        builder.adjust(2, 1, 2, 3) 
     else:
-        return None
+        # Сітка для звичайного юзера
+        builder.button(text="➕ Додати подію")
+        builder.button(text="✍️ Додати нотатку")
+        builder.button(text="📚 База знань")
+        builder.adjust(2, 1, 2, 2, 1)
 
-    return builder.as_markup(resize_keyboard=True, one_time_keyboard=False)
+    return builder.as_markup(resize_keyboard=True)
 
 # --- ПІДМЕНЮ ДЛЯ ВЛАСНИКА ---
-
 def get_restarts_menu() -> ReplyKeyboardMarkup:
     """Меню рестартів"""
     builder = ReplyKeyboardBuilder()
-    builder.row(
-        KeyboardButton(text="🔄 Кіт"),
-        KeyboardButton(text="🔄 SSH"),
-        KeyboardButton(text="🔄 Тунель")
-    )
-    builder.row(
-        KeyboardButton(text="🔄 AllSaver"),
-        KeyboardButton(text="🔄 Дживс")
-    )
-    builder.row(KeyboardButton(text="⬅️ Назад"))
+    builder.button(text="🔄 Кіт")
+    builder.button(text="🔄 SSH")
+    builder.button(text="🔄 Тунель")
+    builder.button(text="🔄 AllSaver")
+    builder.button(text="🔄 Дживс")
+    builder.button(text="⬅️ Назад")
+    builder.adjust(3, 2, 1)
     return builder.as_markup(resize_keyboard=True)
 
 def get_tools_menu() -> ReplyKeyboardMarkup:
     """Меню інструментів та логів"""
     builder = ReplyKeyboardBuilder()
-    builder.row(
-        KeyboardButton(text="📲 Статус"),
-        KeyboardButton(text="💾 Пам'ять"),
-        KeyboardButton(text="💾 Бекап БД")
-    )
-    builder.row(
-        KeyboardButton(text="🔦 Увімк"),
-        KeyboardButton(text="🌑 Вимк"),
-        KeyboardButton(text="📢 Знайти телефон")
-    )
-    builder.row(
-        KeyboardButton(text="📄 Логи"),
-        KeyboardButton(text="❌ Еrror log")
-    )
-    builder.row(KeyboardButton(text="⬅️ Назад"))
+    builder.button(text="📲 Статус")
+    builder.button(text="💾 Пам'ять")
+    builder.button(text="💾 Бекап БД")
+    builder.button(text="🔦 Увімк")
+    builder.button(text="🌑 Вимк")
+    builder.button(text="📢 Знайти телефон")
+    builder.button(text="📄 Логи")
+    builder.button(text="❌ Еrror log")
+    builder.button(text="⬅️ Назад")
+    builder.adjust(3, 3, 2, 1)
     return builder.as_markup(resize_keyboard=True)
 
 def get_info_menu() -> ReplyKeyboardMarkup:
     """Меню інформації"""
     builder = ReplyKeyboardBuilder()
-    builder.row(
-        KeyboardButton(text="🌦 Погода"),
-        KeyboardButton(text="🌦 Погода на тиждень"),
-        KeyboardButton(text="📅 Календар"),
-        KeyboardButton(text="📰 Новини"),
-        # KeyboardButton(text="🛒 Перевірка цін в АТБ")
-    )
-    builder.row(KeyboardButton(text="⬅️ Назад"))
+    builder.button(text="🌦 Обрати місто")
+    builder.button(text="🌦 Погода")
+    builder.button(text="🌦 Погода на тиждень")
+    builder.button(text="📅 Календар")
+    builder.button(text="📰 Новини")
+    builder.button(text="⬅️ Назад")
+    builder.adjust(2, 2, 1)
     return builder.as_markup(resize_keyboard=True)
