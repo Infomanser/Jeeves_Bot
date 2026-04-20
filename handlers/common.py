@@ -22,7 +22,9 @@ async def cmd_weekly_public(message: types.Message):
     status_msg = await message.answer("📅 Отримую прогноз на тиждень...")
     try:
         from services.weather_api import get_weekly_forecast
-        text = await get_weekly_forecast()
+
+        text = await get_weekly_forecast(message.from_user.id)
+        
         await status_msg.edit_text(text, parse_mode="HTML")
     except Exception as e:
         logging.error(f"Public weekly error: {e}")
