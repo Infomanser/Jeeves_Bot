@@ -7,7 +7,7 @@ from typing import Dict, Optional
 import aiohttp
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-DB_PATH = BASE_DIR / "jeeves.db"
+DB_PATH = BASE_DIR / "data" / "jeeves.db"
 
 DEFAULT_CONFIG = {
     "name": "Chernihiv",
@@ -142,4 +142,3 @@ async def get_weekly_forecast(user_id: int) -> str:
         res.append(line)
         
     return "\n".join(res)
-    
