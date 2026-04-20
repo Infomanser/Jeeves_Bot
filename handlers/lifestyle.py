@@ -60,9 +60,9 @@ async def find_and_save_city(message: types.Message, city_name: str):
 @router.message(F.text.in_({"🌦 Обрати місто", "Обрати місто"}))
 async def cmd_set_city(message: types.Message, state: FSMContext):
     if not is_authorized(message.from_user.id): return
-    args = message.text.split(maxsplit=1)
-    if len(args) > 1:
-        await find_and_save_city(message, args[1])
+    if message.text.startswith("/set_city "):
+        city_name = message.text.replace("/set_city ", "", 1).strip()
+        await find_and_save_city(message, city_name)
     else:
         await message.answer("🏙 Введіть назву міста:")
         await state.set_state(WeatherStates.waiting_for_city)
