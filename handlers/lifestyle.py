@@ -1,35 +1,26 @@
-# handlers/lifestyle.py
 import html
-import sqlite3
 from datetime import datetime
-from aiogram import Router, types, F
-from aiogram.fsm.context import FSMContext
+
+from aiogram import F, Router, types
 from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
-from config import OWNER_ID, ADMIN_IDS
+from config import ADMIN_IDS, OWNER_ID
+from keyboards.calendar_kb import get_edit_kb, get_events_filter_kb
 from services.calendar_api import (
-    get_events, 
-    mass_import_events, 
-    get_event_by_id, 
-    update_event_text, 
-    add_new_event, 
+    add_new_event,
+    check_upcoming_events,
     decode_event_to_string,
     delete_event,
-    check_upcoming_events
-)
-from keyboards.calendar_kb import (
-    get_events_filter_kb,
-    get_edit_kb
-)
-from services.weather_api import (
-    get_weather_forecast,
-    search_city,
-    set_city_coords
+    get_event_by_id,
+    get_events,
+    mass_import_events,
+    update_event_text
 )
 from services.news_api import get_fresh_news
-# Імпорт парсера
 from services.price_parser import search_atb
+from services.weather_api import get_weather_forecast, search_city, set_city_coords
 
 router = Router()
 
@@ -56,6 +47,15 @@ def is_authorized(user_id: int) -> bool:
 # 🌤 ПОГОДА ТА МІСТА
 # ==========================================
 
+async def find_and_save_city(message: types.Message, city_name: str):
+    msg = await message.answer(f"🔎 Шукаю <b>{html.escape(city_name)}</b>...")
+    result = await search_city(city_name)
+    if result:
+        set_city_coords(message.from_user.id, result['name'], result['lat'], result['lon'])
+        await msg.edit_text(f"✅ Місто змінено на <b>{result['name']}</b>.")
+    else:
+        await msg.edit_text("❌ Місто не знайдено.")
+
 @router.message(Command("set_city"))
 @router.message(F.text.in_({"🌦 Обрати місто", "Обрати місто"}))
 async def cmd_set_city(message: types.Message, state: FSMContext):
@@ -67,36 +67,18 @@ async def cmd_set_city(message: types.Message, state: FSMContext):
         await message.answer("🏙 Введіть назву міста:")
         await state.set_state(WeatherStates.waiting_for_city)
 
-async def find_and_save_city(message: types.Message, city_name: str):
-    msg = await message.answer(f"🔎 Шукаю <b>{html.escape(city_name)}</b>...")
-    result = await search_city(city_name)
-    if result:
-        set_city_coords(message.from_user.id, result['name'], result['lat'], result['lon'])
-        await msg.edit_text(f"✅ Місто змінено на <b>{result['name']}</b>.")
-    else:
-        await msg.edit_text("❌ Місто не знайдено.")
+@router.message(WeatherStates.waiting_for_city)
+async def process_city_input(message: types.Message, state: FSMContext):
+    await find_and_save_city(message, message.text)
+    await state.clear()
 
 @router.message(Command("weather"))
 @router.message(F.text.in_({"🌦 Погода", "Погода"}))
 async def cmd_weather(message: types.Message):
     if not is_authorized(message.from_user.id): return
     sent_msg = await message.answer("🌤 Дивлюсь у вікно...")
-    text = await get_weather_forecast()
+    text = await get_weather_forecast(message.from_user.id)
     await sent_msg.edit_text(text)
-
-@router.message(WeatherStates.waiting_for_city)
-async def process_city_input(message: types.Message, state: FSMContext):
-    await find_and_save_city(message, message.text)
-    await state.clear()
-
-async def find_and_save_city(message: types.Message, city_name: str):
-    msg = await message.answer(f"🔎 Шукаю <b>{html.escape(city_name)}</b>...")
-    result = await search_city(city_name)
-    if result:
-        set_city_coords(result['name'], result['lat'], result['lon'])
-        await msg.edit_text(f"✅ Місто змінено на <b>{result['name']}</b>.")
-    else:
-        await msg.edit_text("❌ Місто не знайдено.")
 
 @router.message(Command("news"))
 @router.message(F.text == "📰 Новини")
@@ -310,7 +292,7 @@ async def cmd_manual_briefing(message: types.Message):
     events_text = check_upcoming_events(message.from_user.id)
     if events_text: parts.append(f"📅 <b>Нагадування:</b>\n{events_text}")
     
-    weather_text = await get_weather_forecast()
+    weather_text = await get_weather_forecast(message.from_user.id)
     if weather_text: parts.append(weather_text)
     
     news_text = await get_fresh_news()
