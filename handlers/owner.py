@@ -1,3 +1,4 @@
+import logging
 from aiogram import Bot, Router, types
 from aiogram.filters import Command
 from config import OWNER_ID
@@ -14,11 +15,9 @@ router.message.filter(IsOwner())
 @router.message(Command("reboot"))
 async def cmd_reboot(message: types.Message):
     await message.answer("🔄 Перезавантажуюсь...")
-    # логіка ребуту
 
 @router.message(Command("say"))
 async def cmd_say(message: types.Message):
-    # termux.speak(...)
     await message.answer("🗣 Кажу...")
 
 @router.message(Command('brief'))
@@ -26,7 +25,7 @@ async def cmd_briefing(message: types.Message, bot: Bot):
     await message.answer("☕️ Генерую тестовий брифінг...")
     
     try:
-        now = datetime.now() # Визначення поточної дати
+        now = datetime.now()
         parts = []
         if now.weekday() == 6:
             try:
