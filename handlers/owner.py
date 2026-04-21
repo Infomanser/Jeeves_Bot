@@ -30,7 +30,7 @@ async def cmd_briefing(message: types.Message, bot: Bot):
         if now.weekday() == 6:
             try:
                 from services.weather_api import get_weekly_forecast
-                weekly_weather = await get_weekly_forecast()
+                weekly_weather = await get_weekly_forecast(OWNER_ID)
                 await message.answer(weekly_weather)
             except Exception as e:
                 logging.error(f"Weekly weather error: {e}")
