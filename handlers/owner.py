@@ -41,7 +41,7 @@ async def cmd_briefing(message: types.Message, bot: Bot):
             parts.append(f"📅 <b>Нагадування:</b>\n{events_text}")
         
         # 3. ПОГОДА (Поточна)
-        weather_text = await get_weather_forecast()
+        weather_text = await get_weather_forecast(OWNER_ID)
         if weather_text:
             parts.append(f"{weather_text}")
 
